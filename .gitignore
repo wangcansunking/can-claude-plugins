@@ -8,3 +8,6 @@ Thumbs.db
 
 # Per-session scratch/temp files (global rule)
 cc-history/
+
+# Playwright MCP runtime artifacts (snapshots, console logs)
+.playwright-mcp/

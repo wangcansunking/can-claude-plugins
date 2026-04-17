@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design -- built-in-comment-ui</title>
+<script>
+(function(){
+  try {
+    var KEY='plan-harness-theme';
+    var pref=localStorage.getItem(KEY)||'system';
+    var dark=pref==='dark'||(pref==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.setAttribute('data-theme', dark?'dark':'light');
+    document.documentElement.setAttribute('data-theme-pref', pref);
+  } catch(e) {}
+})();
+</script>
+<style>
+/* Palette inspired by Linear (see plan-harness/DESIGN.md). */
+:root {
+  --bg: #f7f8f8; --surface: #f3f4f5; --border: #d0d6e0;
+  --text: #08090a; --muted: #62666d; --accent: #5e6ad2;
+  --green: #1a7f37; --red: #cf222e; --yellow: #9a6700; --purple: #7170ff;
+  --orange: #b35200;
+  --code-bg: #eeeff1;
+  --svg-bg: #f3f4f5; --svg-bg2: #f7f8f8; --svg-text: #08090a;
+  --svg-muted: #62666d; --svg-border: #d0d6e0;
+  --even-row-bg: rgba(243,244,245,0.7);
+  --badge-green-bg: rgba(26,127,55,0.1); --badge-yellow-bg: rgba(154,103,0,0.1);
+  --badge-red-bg: rgba(207,34,46,0.1); --badge-blue-bg: rgba(94,106,210,0.1);
+  --badge-purple-bg: rgba(113,112,255,0.1);
+  --badge-orange-bg: rgba(179,82,0,0.1);
+  --shadow: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.08);
+  --radius: 8px;
+  --radius-sm: 4px;
+  --font-ui: 'Inter Variable', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Berkeley Mono', 'Cascadia Code', 'Fira Code', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font-features: "cv01", "ss03";
+}
+[data-theme="dark"] {
+  --bg: #08090a; --surface: #0f1011; --border: rgba(255,255,255,0.08);
+  --text: #f7f8f8; --muted: #8a8f98; --accent: #7170ff;
+  --green: #27a644; --red: #f85149; --yellow: #d29922; --purple: #828fff;
+  --orange: #e3934a;
+  --code-bg: #141516;
+  --svg-bg: #0f1011; --svg-bg2: #08090a; --svg-text: #f7f8f8;
+  --svg-muted: #8a8f98; --svg-border: rgba(255,255,255,0.08);
+  --even-row-bg: rgba(25,26,27,0.5);
+  --badge-green-bg: rgba(39,166,68,0.15); --badge-yellow-bg: rgba(210,153,34,0.15);
+  --badge-red-bg: rgba(248,81,73,0.15); --badge-blue-bg: rgba(113,112,255,0.15);
+  --badge-purple-bg: rgba(130,143,255,0.15);
+  --badge-orange-bg: rgba(227,147,74,0.15);
+  --shadow: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; font-feature-settings: var(--font-features); }
+body {
+  font-family: var(--font-ui); background: var(--bg); color: var(--text);
+  line-height: 1.6; font-weight: 400; letter-spacing: -0.01em;
+  transition: background-color 0.2s, color 0.2s;
+  padding-left: 260px; padding-top: 3.5rem;
+}
+code, pre, kbd, samp { font-family: var(--font-mono); }
+
+/* Typography -- Linear-inspired */
+h1 { font-size: 2rem; font-weight: 510; letter-spacing: -0.02em; border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; margin-bottom: 0.4rem; }
+h2 { font-size: 1.5rem; font-weight: 510; letter-spacing: -0.015em; color: var(--accent); margin-top: 3rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; scroll-margin-top: 1rem; }
+h3 { font-size: 1.15rem; font-weight: 590; letter-spacing: -0.01em; color: var(--purple); margin-top: 2rem; margin-bottom: 0.7rem; }
+h4 { font-size: 1rem; font-weight: 590; color: var(--green); margin-top: 1.5rem; margin-bottom: 0.5rem; }
+p, li { color: var(--text); margin-bottom: 0.5rem; }
+ul, ol { padding-left: 1.5rem; margin-bottom: 1rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.meta { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.2rem; }
+
+/* Breadcrumb — inline at top of content, plain text (Linear / Notion style) */
+.ph-breadcrumb { display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: var(--muted); margin-bottom: 1rem; flex-wrap: wrap; }
+.ph-breadcrumb a { color: var(--muted); text-decoration: none; transition: color 0.15s; white-space: nowrap; }
+.ph-breadcrumb a:hover { color: var(--accent); }
+.ph-breadcrumb .sep { color: var(--muted); opacity: 0.4; font-size: 0.9em; }
+.ph-breadcrumb .current { color: var(--text); font-weight: 510; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 24rem; }
+
+/* Plan tabs — horizontal row of sibling plan documents, at top of content */
+.plan-tabs { display: flex; gap: 0.15rem; border-bottom: 1px solid var(--border); margin-bottom: 1.8rem; overflow-x: auto; scrollbar-width: none; }
+.plan-tabs::-webkit-scrollbar { display: none; }
+.plan-tabs a { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.55rem 0.85rem; font-size: 0.87rem; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; transition: color 0.15s, border-color 0.15s; font-weight: 510; }
+.plan-tabs a:hover:not([aria-disabled="true"]) { color: var(--text); }
+.plan-tabs a.active { color: var(--accent); border-bottom-color: var(--accent); }
+.plan-tabs a[aria-disabled="true"] { opacity: 0.5; cursor: default; }
+.plan-tabs .soon { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.12em 0.45em; border-radius: 10px; background: var(--code-bg); color: var(--muted); border: 1px solid var(--border); font-weight: 510; }
+
+/* Theme toggle -- three SVG icons, one visible per data-theme-pref */
+.theme-toggle {
+  position: fixed; top: 1rem; right: 1.5rem; z-index: 10000;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.45rem 0.55rem; cursor: pointer; color: var(--text);
+  transition: background 0.2s, border-color 0.2s;
+  display: flex; align-items: center; justify-content: center; width: 36px; height: 36px;
+}
+.theme-toggle:hover { border-color: var(--accent); }
+.theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.theme-toggle svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.theme-toggle svg[data-theme-icon] { display: none; }
+.theme-toggle[data-theme-pref="system"] svg[data-theme-icon="system"],
+.theme-toggle[data-theme-pref="light"]  svg[data-theme-icon="light"],
+.theme-toggle[data-theme-pref="dark"]   svg[data-theme-icon="dark"] { display: block; }
+
+/* Sidebar */
+.side-nav {
+  position: fixed; top: 0; left: 0; width: 260px; height: 100vh;
+  background: var(--surface); border-right: 1px solid var(--border);
+  overflow-y: auto; z-index: 998; padding: 0;
+  display: flex; flex-direction: column;
+}
+.side-nav .nav-head {
+  padding: 4rem 1rem 0.8rem; border-bottom: 1px solid var(--border);
+}
+.side-nav .nav-title { font-size: 0.95rem; font-weight: 590; color: var(--accent); letter-spacing: -0.01em; }
+.side-nav .nav-sub { font-size: 0.72rem; color: var(--muted); margin-top: 0.15rem; text-transform: uppercase; letter-spacing: 0.08em; }
+
+.plan-files { padding: 0.8rem 0 0.4rem; border-bottom: 1px solid var(--border); }
+.plan-files .group-label {
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--muted); padding: 0 1rem 0.4rem;
+}
+.plan-files a {
+  display: flex; align-items: center; gap: 0.45rem;
+  padding: 0.32rem 1rem; font-size: 0.82rem; color: var(--muted);
+  text-decoration: none; border-left: 3px solid transparent;
+}
+.plan-files a:hover { color: var(--text); background: var(--bg); }
+.plan-files a.active { color: var(--accent); border-left-color: var(--accent); background: var(--bg); font-weight: 510; }
+.plan-files a .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+.plan-files a.active .dot { background: var(--accent); }
+.plan-files a.upcoming .dot { background: transparent; border: 1px solid var(--muted); }
+
+.section-nav { padding: 0.6rem 0; overflow-y: auto; flex: 1; }
+.section-nav .group-label {
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--muted); padding: 0.3rem 1rem 0.3rem;
+}
+.section-nav a {
+  display: block; padding: 0.3rem 1rem; font-size: 0.8rem; color: var(--muted);
+  text-decoration: none; border-left: 3px solid transparent;
+}
+.section-nav a:hover { color: var(--text); background: var(--bg); }
+.section-nav a.active { color: var(--accent); border-left-color: var(--accent); background: var(--bg); font-weight: 510; }
+.section-nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* Main content */
+.container { max-width: 1060px; margin: 0 auto; padding: 1rem 2.5rem 5rem; }
+
+code {
+  background: var(--code-bg); padding: 0.12em 0.4em; border-radius: 4px;
+  font-size: 0.88em; color: var(--yellow);
+}
+pre {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.9rem 1rem; overflow-x: auto; margin: 0.8rem 0; font-size: 0.82rem;
+  line-height: 1.55; color: var(--text);
+}
+pre code { background: transparent; padding: 0; color: inherit; font-size: inherit; }
+
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+thead th {
+  position: sticky; top: 0; background: var(--surface); color: var(--accent);
+  text-align: left; padding: 0.55rem 0.8rem; border: 1px solid var(--border); font-weight: 600;
+  z-index: 1;
+}
+td { padding: 0.5rem 0.8rem; border: 1px solid var(--border); vertical-align: top; }
+tbody tr:nth-child(even) { background: var(--even-row-bg); }
+
+/* Badges */
+.badge { display: inline-block; padding: 0.13em 0.55em; border-radius: 12px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+.badge-green { background: var(--badge-green-bg); color: var(--green); border: 1px solid var(--green); }
+.badge-yellow { background: var(--badge-yellow-bg); color: var(--yellow); border: 1px solid var(--yellow); }
+.badge-red { background: var(--badge-red-bg); color: var(--red); border: 1px solid var(--red); }
+.badge-blue { background: var(--badge-blue-bg); color: var(--accent); border: 1px solid var(--accent); }
+.badge-purple { background: var(--badge-purple-bg); color: var(--purple); border: 1px solid var(--purple); }
+.badge-orange { background: var(--badge-orange-bg); color: var(--orange); border: 1px solid var(--orange); }
+.badge-gray { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+
+/* HTTP method badges */
+.http { display: inline-block; padding: 0.1em 0.5em; border-radius: 4px; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; color: #fff; }
+.http-get { background: var(--green); }
+.http-post { background: var(--accent); }
+.http-patch { background: var(--orange); }
+.http-delete { background: var(--red); }
+
+/* Callouts */
+.callout { border-left: 4px solid var(--accent); background: var(--surface); padding: 1rem 1.2rem; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+.callout-warn { border-left-color: var(--yellow); }
+.callout-important { border-left-color: var(--red); }
+.callout-decision { border-left-color: var(--purple); }
+.callout-title { font-weight: 700; margin-bottom: 0.3rem; color: var(--text); display: flex; align-items: center; gap: 0.5rem; }
+
+/* Cards */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.2rem; margin: 1rem 0; }
+.card-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.4rem; color: var(--text); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+
+/* Endpoint cards */
+.endpoint { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.2rem; margin: 0.9rem 0; }
+.endpoint-head { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.endpoint-path { font-family: var(--font-mono); font-size: 0.95rem; font-weight: 600; color: var(--text); }
+.endpoint-desc { color: var(--muted); font-size: 0.88rem; margin-bottom: 0.6rem; }
+
+/* Diagram container */
+.diagram { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin: 1.2rem 0; text-align: center; }
+.diagram svg { display: block; margin: 0 auto; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); max-width: 100%; height: auto; }
+.diagram .caption { margin-top: 0.6rem; color: var(--muted); font-size: 0.85rem; font-style: italic; }
+
+/* Risk cards */
+.risk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0.9rem; margin: 1rem 0; }
+.risk-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.9rem 1rem; }
+.risk-card .risk-head { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; flex-wrap: wrap; }
+.risk-id { font-family: var(--font-mono); font-weight: 700; color: var(--accent); font-size: 0.9rem; }
+.risk-title { font-weight: 700; color: var(--text); flex: 1; min-width: 0; }
+.risk-body { font-size: 0.88rem; color: var(--text); margin-top: 0.3rem; }
+.risk-mit { font-size: 0.85rem; color: var(--muted); margin-top: 0.4rem; }
+.risk-mit strong { color: var(--text); }
+
+/* Details/summary */
+details { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin: 0.7rem 0; overflow: hidden; }
+details summary {
+  cursor: pointer; padding: 0.7rem 1rem; font-weight: 600; color: var(--text);
+  display: flex; align-items: center; gap: 0.5rem; list-style: none; user-select: none;
+}
+details summary::-webkit-details-marker { display: none; }
+details summary::before { content: '\25B8'; color: var(--accent); transition: transform 0.15s; display: inline-block; width: 0.9em; }
+details[open] summary::before { transform: rotate(90deg); }
+details summary:hover { background: var(--bg); }
+details summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+details .body { padding: 0.2rem 1rem 1rem 2.3rem; }
+details[open] .body { display: block; }
+
+/* Phase list */
+.phase { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.9rem 1rem; margin: 0.7rem 0; display: flex; gap: 0.9rem; align-items: flex-start; }
+.phase-num { background: var(--accent); color: var(--bg); width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
+.phase-body { flex: 1; min-width: 0; }
+.phase-title { font-weight: 700; margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.phase-desc { font-size: 0.9rem; color: var(--muted); }
+
+/* Keyboard key */
+kbd {
+  display: inline-block; padding: 0.1em 0.45em; border: 1px solid var(--border); border-bottom-width: 2px;
+  border-radius: 4px; background: var(--code-bg); color: var(--text);
+  font-size: 0.8rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  body { padding-left: 0; }
+  .side-nav {
+    position: static; width: 100%; height: auto; border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .side-nav .nav-head { padding-top: 1rem; }
+  .section-nav { display: none; }
+  .container { padding: 1.2rem 1.2rem 3rem; }
+  .plan-files { display: flex; flex-wrap: wrap; padding: 0.5rem; gap: 0.2rem; border-bottom: 0; }
+  .plan-files .group-label { display: none; }
+  .plan-files a { border-left: 0; border-bottom: 2px solid transparent; padding: 0.3rem 0.6rem; font-size: 0.78rem; }
+  .plan-files a.active { border-left: 0; border-bottom-color: var(--accent); }
+}
+
+/* Print */
+@media print {
+  body { padding-left: 0; padding-top: 0; background: #fff; color: #000; }
+  .side-nav, .theme-toggle, .ph-breadcrumb { display: none !important; }
+  .container { max-width: 100%; padding: 0; }
+  details { border-color: #ccc; background: #fff; }
+  details > .body { display: block !important; }
+  details[open] .body, details .body { display: block !important; }
+  details summary::before { content: ''; }
+  h1, h2, h3, h4 { color: #000; }
+  h2 { border-bottom: 1px solid #666; }
+  h1 { border-bottom: 2px solid #000; }
+  .badge, .http { border: 1px solid #999; color: #000 !important; background: #eee !important; }
+  pre, code { background: #f4f4f4 !important; color: #000 !important; border-color: #ccc !important; }
+  .card, .endpoint, .risk-card, .phase, .callout, .diagram { border-color: #ccc; background: #fff; break-inside: avoid; }
+  .diagram svg { border-color: #999; background: #fff; }
+  table, tr, td, th { page-break-inside: avoid; }
+  thead th { background: #eee !important; color: #000 !important; position: static; }
+  a { color: #000; text-decoration: underline; }
+}
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle" type="button" aria-label="Theme (click to cycle: system, light, dark)" title="Theme -- click to cycle">
+  <svg data-theme-icon="system" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  <svg data-theme-icon="light" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  <svg data-theme-icon="dark" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+</button>
+
+<nav class="side-nav" aria-label="Plan navigation">
+  <div class="nav-head">
+    <div class="nav-title">built-in-comment-ui</div>
+    <div class="nav-sub">Design Round</div>
+  </div>
+
+  <div class="section-nav" aria-label="Sections">
+    <div class="group-label">On this page</div>
+    <a href="#executive-summary">1. Executive Summary</a>
+    <a href="#design-principles">2. Design Principles</a>
+    <a href="#data-model">3. Data Model</a>
+    <a href="#architecture">4. Architecture</a>
+    <a href="#api-design">5. API Design</a>
+    <a href="#ux-design">6. UX Design</a>
+    <a href="#use-cases">7. Use Cases &amp; AC</a>
+    <a href="#implementation-overview">8. Implementation Overview</a>
+    <a href="#security">9. Security</a>
+    <a href="#risks">10. Risk Analysis</a>
+  </div>
+</nav>
+
+<main class="container">
+<nav class="ph-breadcrumb" aria-label="Breadcrumb">
+  <a href="/">Dashboard</a>
+  <span class="sep">&rsaquo;</span>
+  <a href="/scenario/built-in-comment-ui">built-in-comment-ui</a>
+  <span class="sep">&rsaquo;</span>
+  <span class="current">design</span>
+</nav>
+<nav class="plan-tabs" aria-label="Plan documents">
+  <a href="design.html" class="active" aria-current="page">Design</a>
+  <a href="test-plan.html" aria-disabled="true">Test Plan <span class="soon">soon</span></a>
+  <a href="state-machine.html" aria-disabled="true">State Machine <span class="soon">soon</span></a>
+  <a href="test-cases.html" aria-disabled="true">Test Cases <span class="soon">soon</span></a>
+  <a href="implementation-plan.html" aria-disabled="true">Implementation <span class="soon">soon</span></a>
+</nav>
+<h1>Design: built-in-comment-ui</h1>
+<p class="meta">
+  Scenario: <code>built-in-comment-ui</code> &middot; Plugin: <code>plan-harness</code> &middot;
+  <span class="badge badge-blue">collaboration</span>
+  <span class="badge badge-purple">review</span>
+  <span class="badge badge-green">self-contained</span>
+</p>
+
+<!-- ============ 1. EXECUTIVE SUMMARY ============ -->
+<h2 id="executive-summary">1. Executive Summary</h2>
+<p>Today plan-harness generates high-quality HTML plan docs and can share them over a devtunnel with a password gate, but the reading experience is strictly read-only. Reviewers who spot a problem have no way to write back &mdash; they fall out of the tool into Slack / Teams / email / a call. The author has no durable record of which sentence in which section prompted the pushback. For a planning tool whose whole value proposition is <em>reviewable before you code</em>, the missing write path is a first-class gap.</p>
+
+<p>This scenario adds a text-selection commenting layer native to every rendered plan doc. Reviewers select a span, click a floating <strong>Comment</strong> control, and leave a threaded comment attributed to the display name they signed in with. Comments persist as append-only JSONL on the host filesystem using a W3C-style anchor (<code>prefix</code> + <code>exact</code> + <code>suffix</code>) so they survive regeneration. No database, no SaaS, no OAuth &mdash; the same <code>auth.js</code> password gate guards writes.</p>
+
+<h3 id="stakeholders">Stakeholders</h3>
+<ul>
+  <li><strong>Host / Author</strong> &mdash; runs plan-harness locally, gets a durable, attributed backlog tied to exact sentences.</li>
+  <li><strong>Reviewer</strong> &mdash; anyone with URL + password, logs in with display name only, no account.</li>
+  <li><strong>Agent personas (future-ready)</strong> &mdash; architect / PM / tester agents that may respond in <code>/plan-review</code> cycles; schema accommodates agent authorship even if the MVP writes are human-only.</li>
+  <li><strong>plan-harness contributor</strong> &mdash; developer in this repo reading the plan docs <em>about this plugin</em>; self-development recursion is a real UX constraint.</li>
+</ul>
+
+<h3 id="success-metrics">Success Metrics</h3>
+<ul>
+  <li><strong>TTFC</strong> (time-to-first-comment) p50 &lt; 30s / p95 &lt; 90s from landing on login.</li>
+  <li><strong>Anchor survival</strong> &ge; 90% after doc regen.</li>
+  <li>Author sees per-scenario <strong>unresolved count</strong> at a glance on dashboard.</li>
+  <li><strong>Zero silent comment loss</strong> under disk-full / concurrent / tunnel-drop.</li>
+  <li><strong>Keyboard parity</strong> &mdash; every create / reply / resolve / delete reachable via keyboard with ARIA-announced result.</li>
+</ul>
+
+<!-- ============ 2. DESIGN PRINCIPLES ============ -->
+<h2 id="design-principles">2. Core Design Principles</h2>
+
+<div class="callout callout-decision" role="note">
+  <div class="callout-title"><span class="badge badge-purple">Open decision</span> Who can resolve a thread?</div>
+  <p>The Architect proposes that <strong>any authenticated user</strong> may resolve or unresolve any thread (matches Google Docs / Notion model; enables reviewer-driven cleanup). The PM proposes <strong>host-only</strong> resolve (AC-4 P0; prevents reviewers marking-as-resolved without author acknowledgement).</p>
+  <p style="margin-top:0.4rem;"><strong>Status:</strong> Unresolved &mdash; flagged for user decision before implementation begins. Impacts the permission matrix in <a href="#security">&sect;9</a> and AC-4 in <a href="#use-cases">&sect;7</a>.</p>
+</div>
+
+<div class="callout callout-decision" role="note">
+  <div class="callout-title"><span class="badge badge-purple">Open decision</span> Fuzzy re-anchor algorithm</div>
+  <p>The Architect specifies <strong>Jaccard token-overlap &ge; 0.72</strong> (cheap, whitespace-tokenized, good for whole-sentence survival). The PM specifies <strong>Levenshtein similarity &ge; 0.85</strong> (character-level, catches small edits but costlier on long selections).</p>
+  <p style="margin-top:0.4rem;"><strong>Status:</strong> Unresolved &mdash; pick before coding the re-anchor cascade. Affects tier (c) in <a href="#arch-seq-reanchor">&sect;4 Re-anchor sequence</a> and UC-6 in <a href="#use-cases">&sect;7</a>.</p>
+</div>
+
+<ol>
+  <li><strong>HTML is the source of truth for anchors.</strong> Every <code>&lt;h2&gt;/&lt;h3&gt;/&lt;h4&gt;</code> in every generated plan doc gets a stable, deterministic <code>id="sec-&lt;16hex&gt;"</code> derived from a canonical hash of its heading path. Comments anchor <em>into</em> those sections with <code>prefix + exact + suffix</code>. No separate anchor store, no fragile XPath.</li>
+  <li><strong>Server-side identity is non-negotiable.</strong> <code>author</code> is stamped from <code>req.user.name</code> (or the sentinel <code>"Host (local)"</code> on loopback). Any client-supplied <code>author</code> is silently dropped. The session cookie already exists; no new auth primitive is introduced.</li>
+  <li><strong>Re-anchor resilience over anchor purity.</strong> When a doc regenerates, a three-tier match runs: exact <code>prefix+exact+suffix</code> in the same <code>sectionId</code> &rarr; exact text anywhere in the same section (records <code>migratedFrom</code>) &rarr; token-overlap Jaccard &ge; 0.72 across sections. Anything below that threshold is flagged <code>orphaned</code>. Orphans &gt; wrong anchors, always.</li>
+  <li><strong>Append-only JSONL; never a destructive write.</strong> Edits, resolves, deletes, and re-anchors all append new events to <code>plans/&lt;scenario&gt;/.comments/&lt;doc-slug&gt;.jsonl</code>. Last event per <code>id</code> wins on read (event-sourced). Deletes are tombstones; bodies are never rewritten on disk.</li>
+  <li><strong>Zero new runtime dependencies.</strong> Node stdlib only beyond the existing <code>@modelcontextprotocol/sdk</code>. SSE over <code>node:http</code> (not WebSocket &mdash; would need an upgrade dance or third-party lib). Crypto via <code>node:crypto</code>. The widget is <strong>inlined</strong> into every generated HTML doc by <code>base.js</code>, matching the existing self-contained-HTML invariant; no separate script endpoint, no CDN, offline viewing still works.</li>
+  <li><strong>Safety by default.</strong> Path params regex-validated (<code>^[a-zA-Z0-9_-]+$</code>, &le; 80 chars). Resolved paths must start with <code>workspaceRootPath + sep + 'plans' + sep</code>. Bodies stored raw, HTML-escaped on render. Session cookie is <code>SameSite=Strict; HttpOnly; Secure</code> &mdash; relied upon for CSRF with no added token (the marginal security gain does not justify the staleness failure mode).</li>
+  <li><strong>Never silent-fail.</strong> Disk-full yields a <code>507</code> with a user-visible message; the client surfaces a draft-saved-locally banner and auto-retries with exponential backoff. A 200 without a durable write is prohibited.</li>
+</ol>
+
+<!-- ============ 3. DATA MODEL ============ -->
+<h2 id="data-model">3. Data Model</h2>
+
+<h3 id="data-comment">Comment Object</h3>
+<p>Stored as one event per JSONL line. All server-set fields are rejected from client payloads.</p>
+<table>
+  <thead><tr><th>Field</th><th>Type</th><th>Source</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>id</code></td><td>string</td><td>server</td><td>Unique: <code>cmt_</code> + 6 hex chars.</td></tr>
+    <tr><td><code>createdAt</code></td><td>ISO-8601 UTC</td><td>server</td><td>Never accepted from client.</td></tr>
+    <tr><td><code>author</code></td><td>string (1&ndash;80)</td><td>server</td><td>From <code>req.user.name</code>, or <code>"Host (local)"</code> on loopback.</td></tr>
+    <tr><td><code>anchor</code></td><td>Anchor | null</td><td>client</td><td><code>null</code> for doc-level comments.</td></tr>
+    <tr><td><code>body</code></td><td>string (1&ndash;4000)</td><td>client</td><td>Stored raw; HTML-escaped on render.</td></tr>
+    <tr><td><code>threadId</code></td><td>string</td><td>derived</td><td>Root = own <code>id</code>; reply = parent's root id.</td></tr>
+    <tr><td><code>replyTo</code></td><td>string | null</td><td>client</td><td><code>null</code> for roots; parent id for replies.</td></tr>
+    <tr><td><code>resolved</code></td><td>bool</td><td>client</td><td>Append-only transition; see Open Decision.</td></tr>
+    <tr><td><code>resolvedBy</code></td><td>string</td><td>server</td><td>Stamped on resolve event.</td></tr>
+    <tr><td><code>resolvedAt</code></td><td>ISO-8601 UTC</td><td>server</td><td></td></tr>
+    <tr><td><code>deleted</code></td><td>bool</td><td>server</td><td>Soft-delete. Body replaced with <code>"[deleted]"</code> on read.</td></tr>
+    <tr><td><code>deletedBy</code></td><td>string</td><td>server</td><td></td></tr>
+    <tr><td><code>editedAt</code></td><td>ISO-8601 UTC</td><td>server</td><td>Set when an edit event is appended.</td></tr>
+  </tbody>
+</table>
+
+<h3 id="data-anchor">Anchor Object</h3>
+<table>
+  <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>sectionId</code></td><td>string</td><td>Stable <code>sec-&lt;16hex&gt;</code> from SHA-256 of heading path.</td></tr>
+    <tr><td><code>exact</code></td><td>string (&le; 2000)</td><td>Selected text verbatim.</td></tr>
+    <tr><td><code>prefix</code></td><td>string (&le; 64)</td><td>Up to 64 chars immediately before the selection.</td></tr>
+    <tr><td><code>suffix</code></td><td>string (&le; 64)</td><td>Up to 64 chars immediately after the selection.</td></tr>
+    <tr><td><code>orphaned</code></td><td>bool</td><td>Set by re-anchor when no acceptable match is found.</td></tr>
+    <tr><td><code>migratedFrom</code></td><td>string | null</td><td>Previous <code>sectionId</code> if the anchor moved sections on regen.</td></tr>
+  </tbody>
+</table>
+
+<h3 id="data-storage">Storage Layout</h3>
+<pre><code>plans/
+  &lt;scenario-name&gt;/
+    .comments/
+      design.jsonl           # one event per line, append-only
+      test-plan.jsonl
+      state-machine.jsonl
+      ...</code></pre>
+<p>The leading-dot directory matches the existing <code>.plan-context.json</code> convention. Manifest impact: <strong>none</strong> &mdash; counts are surfaced via the API at read time.</p>
+
+<h3 id="data-section-id">Section ID Algorithm</h3>
+<table>
+  <thead><tr><th>Step</th><th>Detail</th></tr></thead>
+  <tbody>
+    <tr><td>1. Normalize</td><td>Lowercase the heading text; spaces &rarr; <code>-</code>; non-alphanumeric stripped.</td></tr>
+    <tr><td>2. Canonical input</td><td><code>&lt;depth&gt;:&lt;parent-chain&gt;:&lt;normalized-title&gt;</code></td></tr>
+    <tr><td>3. Hash</td><td><code>sha256(input).slice(0, 16)</code> &rarr; 16 hex chars.</td></tr>
+    <tr><td>4. Format</td><td><code>sec-&lt;16hex&gt;</code></td></tr>
+    <tr><td>5. Collision</td><td>Within a doc, append <code>-2</code>, <code>-3</code> in generation loop.</td></tr>
+    <tr><td>Collision probability</td><td>~3&times;10<sup>&minus;15</sup> at 100 sections (64-bit space).</td></tr>
+  </tbody>
+</table>
+
+<!-- ============ 4. ARCHITECTURE ============ -->
+<h2 id="architecture">4. Architecture</h2>
+
+<p>Three cooperating parts:</p>
+<ol>
+  <li><strong>Browser widget</strong> (~350 LOC inline) baked into every generated HTML doc by <code>base.js</code>. Handles selection detection, anchor serialization, sidebar rendering, and API calls.</li>
+  <li><strong><code>comment-manager.js</code></strong> &mdash; new server module: JSONL read / append / patch, re-anchor logic, SSE client registry, token-bucket rate limiter.</li>
+  <li><strong>5 new HTTP routes + 1 SSE route</strong> on <code>web-server.js</code>, gating all mutations behind the existing <code>verifyCookie</code> / loopback-bypass auth gate.</li>
+</ol>
+
+<h3 id="arch-components">Component Diagram</h3>
+<div class="diagram">
+  <svg width="800" height="500" viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="arch-title arch-desc">
+    <title id="arch-title">System Architecture</title>
+    <desc id="arch-desc">Browser widget communicates over HTTPS with the Node HTTP server, which routes through auth.js and the comment-manager module into the JSONL filesystem.</desc>
+
+    <!-- Browser box -->
+    <rect x="30" y="40" width="220" height="420" rx="10" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+    <text x="140" y="65" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="12" font-weight="700">BROWSER</text>
+
+    <rect x="50" y="85" width="180" height="90" rx="6" fill="var(--bg)" stroke="var(--accent)" stroke-width="1.5"/>
+    <text x="140" y="108" text-anchor="middle" fill="var(--text)" font-family="sans-serif" font-size="13" font-weight="700">Plan Document HTML</text>
+    <text x="140" y="128" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="11">&lt;head&gt; meta + inline CSS</text>
+    <text x="140" y="146" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="11">&lt;body&gt; sections with</text>
+    <text x="140" y="162" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="11">sec-&lt;16hex&gt; IDs</text>
+
+    <rect x="50" y="195" width="180" height="140" rx="6" fill="var(--bg)" stroke="var(--purple)" stroke-width="1.5"/>
+    <text x="140" y="218" text-anchor="middle" fill="var(--purple)" font-family="sans-serif" font-size="13" font-weight="700">Comment Widget</text>
+    <text x="140" y="240" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="11">SelectionDetector</text>
+    <text x="140" y="258" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="11">CommentComposer</text>
+    <text x="140" y="276" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="11">SidebarRenderer</text>
+    <text x="140" y="294" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="11">ApiClient</text>
+    <text x="140" y="320" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="10" font-style="italic">(fetch + EventSource)</text>
+
+    <rect x="50" y="355" width="180" height="85" rx="6" fill="var(--bg)" stroke="var(--green)" stroke-width="1.5"/>
+    <text x="140" y="378" text-anchor="middle" fill="var(--green)" font-family="sans-serif" font-size="13" font-weight="700">localStorage</text>
+    <text x="140" y="399" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="11">draft buffer,</text>
+    <text x="140" y="416" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="11">theme, read-cursor</text>
+
+    <!-- HTTPS arrow -->
+    <line x1="250" y1="240" x2="330" y2="240" stroke="var(--accent)" stroke-width="2" marker-end="url(#arrow-a)"/>
+    <line x1="330" y1="270" x2="250" y2="270" stroke="var(--accent)" stroke-width="2" marker-end="url(#arrow-a)"/>
+    <text x="290" y="235" text-anchor="middle" fill="var(--accent)" font-family="sans-serif" font-size="10" font-weight="600">HTTPS / SSE</text>
+    <text x="290" y="285" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="10">JSON / text/event-stream</text>
+
+    <!-- HTTP Server box -->
+    <rect x="330" y="40" width="260" height="420" rx="10" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+    <text x="460" y="65" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="12" font-weight="700">HTTP SERVER (node:http)</text>
+
+    <rect x="350" y="85" width="220" height="75" rx="6" fill="var(--bg)" stroke="var(--yellow)" stroke-width="1.5"/>
+    <text x="460" y="107" text-anchor="middle" fill="var(--yellow)" font-family="sans-serif" font-size="13" font-weight="700">auth.js</text>
+    <text x="460" y="127" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="11">verifyCookie()</text>
+    <text x="460" y="145" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="11">loopback bypass</text>
+
+    <rect x="350" y="180" width="220" height="85" rx="6" fill="var(--bg)" stroke="var(--accent)" stroke-width="1.5"/>
+    <text x="460" y="202" text-anchor="middle" fill="var(--accent)" font-family="sans-serif" font-size="13" font-weight="700">web-server.js</text>
+    <text x="460" y="222" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="11">5 comment routes</text>
+    <text x="460" y="240" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="11">1 SSE stream route</text>
+    <text x="460" y="258" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="11">path-safety validator</text>
+
+    <rect x="350" y="285" width="220" height="155" rx="6" fill="var(--bg)" stroke="var(--purple)" stroke-width="1.5"/>
+    <text x="460" y="307" text-anchor="middle" fill="var(--purple)" font-family="sans-serif" font-size="13" font-weight="700">comment-manager.js</text>
+    <text x="460" y="328" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="11">list / append / patch</text>
+    <text x="460" y="346" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="11">reanchor()</text>
+    <text x="460" y="364" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="11">SSE registry</text>
+    <text x="460" y="382" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="11">token-bucket limiter</text>
+    <text x="460" y="400" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="11">audit log &rarr; stderr</text>
+
+    <!-- internal arrows -->
+    <line x1="460" y1="160" x2="460" y2="178" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arrow-m)"/>
+    <line x1="460" y1="265" x2="460" y2="283" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arrow-m)"/>
+
+    <!-- Filesystem arrow -->
+    <line x1="590" y1="360" x2="670" y2="360" stroke="var(--green)" stroke-width="2" marker-end="url(#arrow-g)"/>
+    <text x="630" y="355" text-anchor="middle" fill="var(--green)" font-family="sans-serif" font-size="10" font-weight="600">append</text>
+    <line x1="670" y1="385" x2="590" y2="385" stroke="var(--green)" stroke-width="2" marker-end="url(#arrow-g)"/>
+    <text x="630" y="402" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="10">read</text>
+
+    <!-- Filesystem box -->
+    <rect x="670" y="260" width="110" height="200" rx="10" fill="var(--surface)" stroke="var(--green)" stroke-width="1.5"/>
+    <text x="725" y="285" text-anchor="middle" fill="var(--green)" font-family="sans-serif" font-size="12" font-weight="700">FILESYSTEM</text>
+    <text x="725" y="310" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="10">plans/</text>
+    <text x="725" y="326" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="10">&lt;scenario&gt;/</text>
+    <text x="725" y="342" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="10">.comments/</text>
+    <text x="725" y="358" text-anchor="middle" fill="var(--yellow)" font-family="sans-serif" font-size="10" font-weight="600">*.jsonl</text>
+    <text x="725" y="390" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="10" font-style="italic">append-only</text>
+    <text x="725" y="408" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="10" font-style="italic">event log</text>
+
+    <!-- arrowhead defs -->
+    <defs>
+      <marker id="arrow-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)"/>
+      </marker>
+      <marker id="arrow-g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--green)"/>
+      </marker>
+      <marker id="arrow-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--muted)"/>
+      </marker>
+    </defs>
+  </svg>
+  <div class="caption">Figure 1. System architecture. The widget is inlined into the HTML itself; all mutations flow through <code>auth.js</code> into the append-only JSONL event log.</div>
+</div>
+
+<h3 id="arch-seq-create">Sequence: Reviewer Leaves a Comment</h3>
+<div class="diagram">
+  <svg width="800" height="500" viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="seq1-title seq1-desc">
+    <title id="seq1-title">Sequence diagram: reviewer creates a comment</title>
+    <desc id="seq1-desc">A reviewer selects text; the widget builds an anchor from the nearest sec- ID ancestor, sends a POST, the auth gate passes, the comment-manager appends a JSONL line, and an SSE broadcast fans out to other viewers.</desc>
+
+    <!-- Lifelines -->
+    <g font-family="sans-serif" font-size="12">
+      <rect x="30" y="30" width="130" height="30" rx="6" fill="var(--bg)" stroke="var(--accent)" stroke-width="1.5"/>
+      <text x="95" y="50" text-anchor="middle" fill="var(--text)" font-weight="700">Reviewer</text>
+      <line x1="95" y1="60" x2="95" y2="480" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4,3"/>
+
+      <rect x="195" y="30" width="130" height="30" rx="6" fill="var(--bg)" stroke="var(--purple)" stroke-width="1.5"/>
+      <text x="260" y="50" text-anchor="middle" fill="var(--text)" font-weight="700">Widget</text>
+      <line x1="260" y1="60" x2="260" y2="480" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4,3"/>
+
+      <rect x="360" y="30" width="130" height="30" rx="6" fill="var(--bg)" stroke="var(--yellow)" stroke-width="1.5"/>
+      <text x="425" y="50" text-anchor="middle" fill="var(--text)" font-weight="700">auth.js</text>
+      <line x1="425" y1="60" x2="425" y2="480" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4,3"/>
+
+      <rect x="525" y="30" width="130" height="30" rx="6" fill="var(--bg)" stroke="var(--accent)" stroke-width="1.5"/>
+      <text x="590" y="50" text-anchor="middle" fill="var(--text)" font-weight="700">comment-mgr</text>
+      <line x1="590" y1="60" x2="590" y2="480" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4,3"/>
+
+      <rect x="680" y="30" width="100" height="30" rx="6" fill="var(--bg)" stroke="var(--green)" stroke-width="1.5"/>
+      <text x="730" y="50" text-anchor="middle" fill="var(--text)" font-weight="700">JSONL</text>
+      <line x1="730" y1="60" x2="730" y2="480" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4,3"/>
+    </g>
+
+    <!-- Arrows -->
+    <g font-family="sans-serif" font-size="11">
+      <line x1="95" y1="90" x2="258" y2="90" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#seq-a)"/>
+      <text x="176" y="85" text-anchor="middle" fill="var(--text)">mouseup on selection</text>
+
+      <rect x="240" y="100" width="40" height="40" fill="var(--purple)" opacity="0.12" stroke="var(--purple)" stroke-width="1"/>
+      <text x="260" y="118" text-anchor="middle" fill="var(--purple)" font-size="10">build</text>
+      <text x="260" y="132" text-anchor="middle" fill="var(--purple)" font-size="10">Anchor</text>
+
+      <line x1="95" y1="165" x2="258" y2="165" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#seq-a)"/>
+      <text x="176" y="160" text-anchor="middle" fill="var(--text)">click Comment / Ctrl+Alt+M</text>
+
+      <line x1="260" y1="200" x2="423" y2="200" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#seq-a)"/>
+      <text x="341" y="195" text-anchor="middle" fill="var(--text)">POST /api/comments/...</text>
+
+      <rect x="405" y="210" width="40" height="35" fill="var(--yellow)" opacity="0.12" stroke="var(--yellow)" stroke-width="1"/>
+      <text x="425" y="225" text-anchor="middle" fill="var(--yellow)" font-size="10">verify</text>
+      <text x="425" y="238" text-anchor="middle" fill="var(--yellow)" font-size="10">cookie</text>
+
+      <line x1="425" y1="270" x2="588" y2="270" stroke="var(--green)" stroke-width="1.5" marker-end="url(#seq-g)"/>
+      <text x="506" y="265" text-anchor="middle" fill="var(--text)">appendComment(scenario, doc, body)</text>
+
+      <line x1="590" y1="305" x2="728" y2="305" stroke="var(--green)" stroke-width="1.5" marker-end="url(#seq-g)"/>
+      <text x="659" y="300" text-anchor="middle" fill="var(--text)">fs.appendFile(..., line)</text>
+
+      <line x1="728" y1="335" x2="592" y2="335" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#seq-m)"/>
+      <text x="660" y="330" text-anchor="middle" fill="var(--muted)">ok</text>
+
+      <line x1="590" y1="365" x2="262" y2="365" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#seq-m)"/>
+      <text x="426" y="360" text-anchor="middle" fill="var(--muted)">201 Comment { id, author, ... }</text>
+
+      <rect x="240" y="375" width="40" height="35" fill="var(--purple)" opacity="0.12" stroke="var(--purple)" stroke-width="1"/>
+      <text x="260" y="390" text-anchor="middle" fill="var(--purple)" font-size="10">render</text>
+      <text x="260" y="403" text-anchor="middle" fill="var(--purple)" font-size="10">sidebar</text>
+
+      <line x1="260" y1="435" x2="95" y2="435" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#seq-m)"/>
+      <text x="176" y="430" text-anchor="middle" fill="var(--muted)">highlight + card visible</text>
+
+      <line x1="590" y1="460" x2="260" y2="460" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#seq-a)"/>
+      <text x="425" y="474" text-anchor="middle" fill="var(--accent)" font-size="10">SSE broadcast &rarr; other viewers</text>
+    </g>
+
+    <defs>
+      <marker id="seq-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)"/>
+      </marker>
+      <marker id="seq-g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--green)"/>
+      </marker>
+      <marker id="seq-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--muted)"/>
+      </marker>
+    </defs>
+  </svg>
+  <div class="caption">Figure 2. Reviewer creates a comment. Attribution is stamped server-side after <code>verifyCookie</code>; success is broadcast via SSE to any other open tabs.</div>
+</div>
+
+<h3 id="arch-seq-reanchor">Sequence: Re-anchor on Regen</h3>
+<div class="diagram">
+  <svg width="800" height="500" viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="seq2-title seq2-desc">
+    <title id="seq2-title">Sequence diagram: re-anchor on regeneration</title>
+    <desc id="seq2-desc">After a doc is regenerated, plan_reanchor walks each comment through a three-tier match cascade: exact prefix+exact+suffix, section-scoped exact, then Jaccard 0.72 token overlap. Failures are flagged orphaned.</desc>
+
+    <g font-family="sans-serif" font-size="12">
+      <rect x="30" y="30" width="140" height="30" rx="6" fill="var(--bg)" stroke="var(--accent)" stroke-width="1.5"/>
+      <text x="100" y="50" text-anchor="middle" fill="var(--text)" font-weight="700">plan_reanchor</text>
+      <line x1="100" y1="60" x2="100" y2="480" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4,3"/>
+
+      <rect x="210" y="30" width="160" height="30" rx="6" fill="var(--bg)" stroke="var(--purple)" stroke-width="1.5"/>
+      <text x="290" y="50" text-anchor="middle" fill="var(--text)" font-weight="700">reanchorDocument</text>
+      <line x1="290" y1="60" x2="290" y2="480" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4,3"/>
+
+      <rect x="410" y="30" width="160" height="30" rx="6" fill="var(--bg)" stroke="var(--yellow)" stroke-width="1.5"/>
+      <text x="490" y="50" text-anchor="middle" fill="var(--text)" font-weight="700">new HTML content</text>
+      <line x1="490" y1="60" x2="490" y2="480" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4,3"/>
+
+      <rect x="610" y="30" width="160" height="30" rx="6" fill="var(--bg)" stroke="var(--green)" stroke-width="1.5"/>
+      <text x="690" y="50" text-anchor="middle" fill="var(--text)" font-weight="700">JSONL event log</text>
+      <line x1="690" y1="60" x2="690" y2="480" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4,3"/>
+    </g>
+
+    <g font-family="sans-serif" font-size="11">
+      <!-- Invoke -->
+      <line x1="100" y1="90" x2="288" y2="90" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#re-a)"/>
+      <text x="194" y="85" text-anchor="middle" fill="var(--text)">invoke(scenarioPath, docSlug)</text>
+
+      <!-- Load comments -->
+      <line x1="290" y1="125" x2="688" y2="125" stroke="var(--green)" stroke-width="1.5" marker-end="url(#re-g)"/>
+      <text x="489" y="120" text-anchor="middle" fill="var(--text)">load comments</text>
+
+      <!-- For each comment, try tier 1 -->
+      <rect x="200" y="150" width="500" height="300" rx="8" fill="none" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="215" y="168" fill="var(--muted)" font-weight="700" font-size="11">loop: for each comment</text>
+
+      <!-- Tier 1 -->
+      <line x1="290" y1="195" x2="488" y2="195" stroke="var(--green)" stroke-width="1.5" marker-end="url(#re-g)"/>
+      <text x="389" y="190" text-anchor="middle" fill="var(--green)" font-weight="600">(a) exact prefix+exact+suffix in same sectionId</text>
+      <rect x="470" y="205" width="40" height="28" fill="var(--green)" opacity="0.15" stroke="var(--green)"/>
+      <text x="490" y="223" text-anchor="middle" fill="var(--green)" font-size="10" font-weight="700">HELD</text>
+
+      <!-- Tier 2 -->
+      <line x1="290" y1="255" x2="488" y2="255" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#re-a)"/>
+      <text x="389" y="250" text-anchor="middle" fill="var(--accent)" font-weight="600">(b) else exact text anywhere in same section</text>
+      <rect x="460" y="265" width="60" height="28" fill="var(--accent)" opacity="0.15" stroke="var(--accent)"/>
+      <text x="490" y="283" text-anchor="middle" fill="var(--accent)" font-size="10" font-weight="700">MIGRATED</text>
+
+      <!-- Tier 3 -->
+      <line x1="290" y1="315" x2="488" y2="315" stroke="var(--yellow)" stroke-width="1.5" marker-end="url(#re-y)"/>
+      <text x="389" y="310" text-anchor="middle" fill="var(--yellow)" font-weight="600">(c) else Jaccard &ge; 0.72 across sections</text>
+      <rect x="460" y="325" width="60" height="28" fill="var(--yellow)" opacity="0.15" stroke="var(--yellow)"/>
+      <text x="490" y="343" text-anchor="middle" fill="var(--yellow)" font-size="10" font-weight="700">MIGRATED</text>
+
+      <!-- Orphan -->
+      <line x1="290" y1="375" x2="688" y2="375" stroke="var(--red)" stroke-width="1.5" marker-end="url(#re-r)"/>
+      <text x="489" y="370" text-anchor="middle" fill="var(--red)" font-weight="600">(d) else append { orphaned: true } event</text>
+      <rect x="660" y="385" width="60" height="28" fill="var(--red)" opacity="0.15" stroke="var(--red)"/>
+      <text x="690" y="403" text-anchor="middle" fill="var(--red)" font-size="10" font-weight="700">ORPHAN</text>
+    </g>
+
+    <!-- Return -->
+    <line x1="290" y1="465" x2="102" y2="465" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#re-m)"/>
+    <text x="196" y="460" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="11">{ held, migrated, orphaned } + stderr audit line</text>
+
+    <defs>
+      <marker id="re-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)"/>
+      </marker>
+      <marker id="re-g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--green)"/>
+      </marker>
+      <marker id="re-y" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--yellow)"/>
+      </marker>
+      <marker id="re-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--red)"/>
+      </marker>
+      <marker id="re-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--muted)"/>
+      </marker>
+    </defs>
+  </svg>
+  <div class="caption">Figure 3. Re-anchor cascade. Tiers (a)&ndash;(c) hold the comment against the new HTML; only (d) flags it orphaned. The summary is logged to stderr and surfaced to the host.</div>
+</div>
+
+<h3 id="arch-tech-choices">Technology Choices</h3>
+<div class="card">
+  <div class="card-title">SSE vs polling vs WebSocket <span class="badge badge-green">decision: SSE</span></div>
+  <p><code>node:http</code> supports SSE natively (chunked <code>text/event-stream</code>); WebSocket needs an upgrade dance or a third-party lib &mdash; rejected because it violates the no-new-deps rule. 5-second polling lags multi-reviewer sessions. SSE gives sub-second delivery with a single persistent connection per open doc. An in-memory <code>Map&lt;docKey, Set&lt;Response&gt;&gt;</code> registry flushes on writes; 30s pings keep the tunnel alive; <code>EventSource</code> auto-reconnects on the client.</p>
+</div>
+<div class="card">
+  <div class="card-title">Resolve semantics <span class="badge badge-blue">decision: collapse + flag</span></div>
+  <p>Resolved threads fade in the sidebar with a <em>Resolved</em> badge; click to expand; the thread is never removed. Matches Google Docs / Word / Notion. <em>Who</em> may resolve is the Open Decision flagged above.</p>
+</div>
+
+<!-- ============ 5. API DESIGN ============ -->
+<h2 id="api-design">5. API Design</h2>
+<p>All routes require the existing auth gate. Loopback sets <code>author: "Host (local)"</code>. Remote clients need a valid <code>plan_session</code> cookie. All payloads and responses are JSON.</p>
+
+<div class="endpoint">
+  <div class="endpoint-head">
+    <span class="http http-get">GET</span>
+    <span class="endpoint-path">/api/comments/:scenario/:doc</span>
+    <span class="badge badge-gray">auth</span>
+  </div>
+  <div class="endpoint-desc">List all comments for a doc. Roots sorted by <code>createdAt</code> ascending; replies nested within their thread.</div>
+  <p><strong>Response 200</strong></p>
+<pre><code>{
+  "comments": [
+    {
+      "id": "cmt_a1b2c3",
+      "createdAt": "2026-04-17T12:34:56Z",
+      "author": "alice",
+      "anchor": {
+        "sectionId": "sec-4f3a...",
+        "exact": "server-side from req.user",
+        "prefix": "flows exclusively ",
+        "suffix": ".name or the loopback"
+      },
+      "body": "Should we clamp author length earlier?",
+      "threadId": "cmt_a1b2c3",
+      "replyTo": null,
+      "resolved": false,
+      "replies": [ ... ]
+    }
+  ],
+  "meta": { "total": 12, "resolved": 3, "orphaned": 1 }
+}</code></pre>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-head">
+    <span class="http http-post">POST</span>
+    <span class="endpoint-path">/api/comments/:scenario/:doc</span>
+    <span class="badge badge-gray">auth</span>
+    <span class="badge badge-yellow">rate-limited</span>
+  </div>
+  <div class="endpoint-desc">Create a new comment or reply.</div>
+  <p><strong>Request body</strong></p>
+<pre><code>{
+  "anchor": { "sectionId": "sec-4f3a...", "exact": "...", "prefix": "...", "suffix": "..." },
+  "body": "plain text, 1-4000 chars",
+  "threadId": null,
+  "replyTo": null
+}</code></pre>
+  <p><strong>Response 201</strong> &mdash; full stored <code>Comment</code> object. <code>author</code>, <code>id</code>, <code>createdAt</code> are server-stamped.</p>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-head">
+    <span class="http http-patch">PATCH</span>
+    <span class="endpoint-path">/api/comments/:scenario/:doc/:id</span>
+    <span class="badge badge-gray">auth</span>
+  </div>
+  <div class="endpoint-desc">Edit body (author-only) or flip resolved flag. Appends a new event; prior versions are preserved on disk.</div>
+  <p><strong>Request body</strong></p>
+<pre><code>{ "body": "updated text" }
+// or
+{ "resolved": true }</code></pre>
+  <p><strong>Response 200</strong> &mdash; updated <code>Comment</code>. <code>403</code> if author mismatch on body edit.</p>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-head">
+    <span class="http http-delete">DELETE</span>
+    <span class="endpoint-path">/api/comments/:scenario/:doc/:id</span>
+    <span class="badge badge-gray">auth</span>
+  </div>
+  <div class="endpoint-desc">Soft-delete a comment. Body becomes <code>"[deleted]"</code> on read; on-disk history preserved.</div>
+  <p><strong>Response 204</strong>. <code>403</code> if not author (or host override).</p>
+</div>
+
+<div class="endpoint">
+  <div class="endpoint-head">
+    <span class="http http-get">GET</span>
+    <span class="endpoint-path">/api/comments/:scenario/:doc/stream</span>
+    <span class="badge badge-gray">auth</span>
+    <span class="badge badge-blue">SSE</span>
+  </div>
+  <div class="endpoint-desc">Server-Sent Events stream. Emits <code>comment</code> events on create / patch / delete, and <code>ping</code> every 30s to keep the devtunnel alive.</div>
+<pre><code>event: comment
+data: { "op": "create", "comment": { ... } }
+
+event: ping
+data: {}</code></pre>
+</div>
+
+<h3 id="api-errors">Error Format</h3>
+<p>All errors: <code>{ "error": "CODE", "message": "human readable" }</code>.</p>
+<table>
+  <thead><tr><th>Code</th><th>HTTP</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>BAD_REQUEST</code></td><td>400</td><td>Invalid payload, missing field, or path-regex failure.</td></tr>
+    <tr><td><code>FORBIDDEN</code></td><td>403</td><td>Not the author; edit window expired; no host role for host-only op.</td></tr>
+    <tr><td><code>NOT_FOUND</code></td><td>404</td><td>Scenario, doc, or comment id missing.</td></tr>
+    <tr><td><code>RATE_LIMITED</code></td><td>429</td><td>Token bucket empty. Includes <code>Retry-After</code> header.</td></tr>
+    <tr><td><code>INTERNAL</code></td><td>500</td><td>Unexpected error; details in stderr.</td></tr>
+    <tr><td><code>DISK_FULL</code></td><td>507</td><td>ENOSPC on append. Never silent-200.</td></tr>
+  </tbody>
+</table>
+
+<h3 id="api-rate">Rate Limiting &amp; Path Safety</h3>
+<ul>
+  <li><strong>Rate limit:</strong> 5 POST per session per 10s via in-memory token bucket (<code>Map&lt;sid, { tokens, lastRefill }&gt;</code>). 429 with <code>Retry-After</code> on empty.</li>
+  <li><strong>Path safety:</strong> route params match <code>^[a-zA-Z0-9_-]+$</code>, max 80 chars. Resolved filesystem path must start with <code>workspaceRootPath + sep + 'plans' + sep</code>, mirroring the existing <code>/view</code> fix.</li>
+</ul>
+
+<!-- ============ 6. UX DESIGN ============ -->
+<h2 id="ux-design">6. UX Design</h2>
+
+<h3 id="ux-flow">Primary User Flow</h3>
+<ol>
+  <li>Reviewer lands on a plan doc (via tunnel URL or localhost).</li>
+  <li>Reviewer drags to select &ge; 3 chars inside a section that has a <code>[data-section-id]</code> ancestor.</li>
+  <li>A floating <strong>Comment</strong> button appears within 150ms, anchored to the selection end (Word / Notion / Hypothesis model). Keyboard: <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd>. No right-click menu in MVP.</li>
+  <li>Click (or keyboard shortcut) opens a <strong>right-side sliding panel (~380&nbsp;px, non-modal)</strong>. The selection highlights; composer textarea takes focus.</li>
+  <li><kbd>Ctrl</kbd>+<kbd>Enter</kbd> submits. Success appends to JSONL, renders an inline <code>&lt;mark&gt;</code> highlight + sidebar thread card. Failure shows an inline error and re-enables submit after 2s (5xx) or on a visible countdown (429).</li>
+  <li><kbd>Esc</kbd> closes the composer; focus returns to the selection end. Drafts are auto-saved to <code>localStorage</code> keyed by <code>(scenario, doc, anchor)</code> and restored on reload.</li>
+</ol>
+
+<p><strong>Why a side panel over a modal or inline bubble?</strong> Threads get long; modals trap focus and block re-reading the doc; inline bubbles clip at section boundaries and fight embedded charts. A non-modal slide-over lets the reviewer re-check context while writing. Below 720&nbsp;px, the panel becomes a bottom sheet.</p>
+
+<h3 id="ux-components">Component Inventory</h3>
+<table>
+  <thead><tr><th>Component</th><th>Location</th><th>Purpose</th><th>Key a11y</th></tr></thead>
+  <tbody>
+    <tr><td>SelectionDetector</td><td>Invisible; listens <code>mouseup</code> + <code>selectionchange</code></td><td>Builds an Anchor from the current Range.</td><td>Walks ancestors for the nearest <code>^sec-</code> id.</td></tr>
+    <tr><td>Floating Comment button</td><td>Position: absolute, placed via <code>getBoundingClientRect</code></td><td>Primary entry point for mouse users.</td><td><code>button</code>; <code>aria-label="Add comment on selection"</code>.</td></tr>
+    <tr><td>Side panel / composer</td><td>Fixed, right edge (or bottom sheet &lt;720&nbsp;px)</td><td>Thread list + composer.</td><td><code>role="dialog" aria-modal="false" aria-labelledby</code>.</td></tr>
+    <tr><td>Inline highlight</td><td><code>&lt;mark&gt;</code> wrap in-place</td><td>Visual link between text and thread.</td><td><code>role="mark" aria-describedby</code> &rarr; thread count.</td></tr>
+    <tr><td>Thread card</td><td>Inside side panel</td><td>Author, timestamp, body, reply + resolve + delete controls.</td><td>Fully Tab-reachable; focus ring 2px.</td></tr>
+    <tr><td>Orphan group</td><td>Pinned top of side panel</td><td>Comments whose anchor did not survive regen.</td><td>Amber accent; clear "Needs reattachment" label.</td></tr>
+    <tr><td>Sticky doc pill</td><td>Top-right of main content</td><td><em>N unresolved</em> toggle for side panel.</td><td>Live region updates when count changes.</td></tr>
+    <tr><td>Empty-state card</td><td>Side panel first load</td><td>"No comments yet. Select any text to leave the first."</td><td>First-select tooltip is dismissible and <kbd>Esc</kbd>-closable.</td></tr>
+    <tr><td>Offline banner</td><td>Top of side panel</td><td>"You're offline. Drafts saved locally."</td><td><code>role="status" aria-live="polite"</code>.</td></tr>
+  </tbody>
+</table>
+
+<h3 id="ux-a11y">Accessibility Callouts</h3>
+<div class="callout">
+  <div class="callout-title"><span class="badge badge-blue">A11y</span> Focus choreography</div>
+  <ul>
+    <li>Composer open <strong>steals focus in</strong>; on close, focus returns to the selection end (or the Comment button that opened it).</li>
+    <li>Sidebar open/close <strong>does not</strong> steal focus &mdash; it is a non-modal surface.</li>
+    <li>All create / reply / resolve / delete controls are <code>Tab</code>-reachable with a 2&nbsp;px focus ring.</li>
+    <li><code>aria-live="polite"</code> region announces posts, replies, and resolves.</li>
+    <li>Dark-mode contrast &ge; WCAG AA (4.5:1 text, 3:1 graphics). Highlight color: yellow underline light / amber dark.</li>
+  </ul>
+</div>
+
+<h3 id="ux-keyboard">Keyboard Cheat-Sheet</h3>
+<table>
+  <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+  <tbody>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd></td><td>Open composer against current selection.</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Submit comment / reply.</td></tr>
+    <tr><td><kbd>Esc</kbd></td><td>Close composer; focus returns to selection end.</td></tr>
+    <tr><td><kbd>?</kbd></td><td>Show keyboard cheat-sheet overlay.</td></tr>
+    <tr><td><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></td><td>Cycle through controls.</td></tr>
+    <tr><td><kbd>Enter</kbd> on thread</td><td>Expand / collapse the thread card.</td></tr>
+  </tbody>
+</table>
+
+<h3 id="ux-theme">Theme Parity</h3>
+<p>Extend existing CSS custom props &mdash; <code>--comment-highlight</code>, <code>--comment-accent</code>, <code>--comment-orphan</code>, <code>--comment-resolved</code> &mdash; defined under both <code>:root</code> / <code>[data-theme="dark"]</code> and <code>[data-theme="light"]</code>. Orphans are <em>not</em> counted in the dashboard badge (avoids anxiety spikes); they are only visible inside the doc where they can actually be acted on.</p>
+
+<!-- ============ 7. USE CASES ============ -->
+<h2 id="use-cases">7. Use Cases &amp; Acceptance Criteria</h2>
+
+<h3 id="uc-list">Use Cases</h3>
+
+<details open>
+  <summary>UC-1 &mdash; Reviewer leaves a comment on a text selection <span class="badge badge-blue">MVP</span></summary>
+  <div class="body">
+    <p><strong>Actor:</strong> Reviewer. <strong>Trigger:</strong> selects &ge; 3 chars inside a <code>[data-section-id]</code>. <strong>Pre:</strong> logged in, doc loaded.</p>
+    <ol>
+      <li>Drag-select span.</li>
+      <li>Floating Comment button appears within 150ms anchored to selection end.</li>
+      <li>Click button or <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd>.</li>
+      <li>Side panel opens; composer focused; selection highlighted.</li>
+      <li>Type body + <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.</li>
+      <li>Client POSTs; server validates auth, appends JSONL, 201s.</li>
+      <li>UI renders highlight + thread card; composer clears.</li>
+    </ol>
+    <p><strong>Alt:</strong> 4a. <kbd>Esc</kbd> &rarr; panel closes, no write. <strong>Post:</strong> one JSONL line; visible on next poll / SSE event.</p>
+  </div>
+</details>
+
+<details>
+  <summary>UC-2 &mdash; Reviewer replies to a thread <span class="badge badge-blue">MVP</span></summary>
+  <div class="body">
+    <p>Actor: Reviewer. Click thread in sidebar or inline highlight &rarr; thread expands &rarr; type reply &rarr; POST with <code>replyTo: &lt;parent-id&gt;</code> &rarr; server appends &rarr; UI nests the reply. <strong>Post:</strong> thread +1 msg; reply inherits <code>threadId</code>.</p>
+  </div>
+</details>
+
+<details>
+  <summary>UC-3 &mdash; Host reads new comments <span class="badge badge-blue">MVP</span></summary>
+  <div class="body">
+    <p>Scenario cards show <em>N new / M unresolved</em> badges &rarr; click scenario &rarr; per-doc breakdown &rarr; open doc with sidebar expanded, newest unread pinned &rarr; viewing a thread advances the host's <code>localStorage</code> read cursor. <strong>Post:</strong> cursor updates; badges refresh next load.</p>
+  </div>
+</details>
+
+<details>
+  <summary>UC-4 &mdash; Host resolves a thread <span class="badge badge-purple">Open decision</span></summary>
+  <div class="body">
+    <p>Actor: Host (loopback OR <code>role: host</code> session). Click Resolve &rarr; 5s undo toast &rarr; on timeout, POST resolve &rarr; thread collapses with <em>Resolved</em> badge. Alt: click Undo &rarr; no write. <strong>Post:</strong> <code>{ resolved: true }</code> event appended; thread still in JSONL.</p>
+    <p><em>Note: PM requires host-only; Architect permits any auth user. See Open Decision in &sect;2.</em></p>
+  </div>
+</details>
+
+<details>
+  <summary>UC-5 &mdash; Reviewer edits / deletes own comment <span class="badge badge-blue">MVP</span></summary>
+  <div class="body">
+    <p>Actor: Reviewer (author match + within 10-min edit window). <strong>Edit:</strong> inline editor &rarr; PATCH &rarr; append-only edit event (prior body preserved). <strong>Delete:</strong> tombstone event &rarr; UI shows <em>"[deleted by author]"</em>. <strong>Post:</strong> no destructive disk write.</p>
+  </div>
+</details>
+
+<details>
+  <summary>UC-6 &mdash; Regen + re-anchor <span class="badge badge-blue">MVP</span></summary>
+  <div class="body">
+    <p>Actor: Host. Doc regenerated with preserved <code>sectionId</code>s &rarr; on next load, re-anchor: exact <code>prefix+exact+suffix</code> in same <code>sectionId</code> &rarr; hold; else fuzzy (Levenshtein 0.85 PM / Jaccard 0.72 Architect) within section &rarr; hold; else mark orphaned. <strong>Post:</strong> each comment has status anchored / fuzzy / orphaned.</p>
+  </div>
+</details>
+
+<details>
+  <summary>UC-7 &mdash; Orphan recovery <span class="badge badge-blue">MVP</span></summary>
+  <div class="body">
+    <p>Pinned "Needs reattachment (N)" at top of sidebar &rarr; click orphan shows original <code>exact</code> in a blockquote &rarr; <em>Reattach to selection</em> mode &rarr; select new text &rarr; reanchor event. Alt: <em>Archive</em> hides without a new anchor. <strong>Post:</strong> orphan cleared.</p>
+  </div>
+</details>
+
+<details>
+  <summary>UC-8 &mdash; Badge on scenario card <span class="badge badge-blue">MVP</span></summary>
+  <div class="body">
+    <p>Dashboard shows unresolved counts (document state, not per-user). Scenario detail has per-doc breakdown. Clicking a doc with unresolved scrolls to first unresolved highlight. <strong>Post:</strong> reviewer's cursor updates on thread view.</p>
+  </div>
+</details>
+
+<details>
+  <summary>UC-9 &mdash; Export PDF with margin notes <span class="badge badge-purple">P2</span></summary>
+  <div class="body">
+    <p>Click <em>Export PDF</em> on doc &rarr; pipeline inlines threads as numbered footnotes referencing highlighted spans; toggle to export plan-only. Default includes comments; resolved are dimmed. <strong>Post:</strong> static PDF with review trail.</p>
+  </div>
+</details>
+
+<details>
+  <summary>UC-10 &mdash; Keyboard-only a11y <span class="badge badge-yellow">P1</span></summary>
+  <div class="body">
+    <p>Actor: Screen-reader reviewer. Tab to section &rarr; Enter reading mode &rarr; arrow keys advance selection by word/sentence &rarr; <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd> opens composer, focus in textarea, SR announces <em>"Comment composer, referencing: &lt;selected text&gt;"</em> &rarr; <kbd>Ctrl</kbd>+<kbd>Enter</kbd> submits &rarr; ARIA live region announces <em>"Comment posted"</em>. Alt: <kbd>Esc</kbd> closes composer; focus returns to anchor. <strong>Post:</strong> no mouse used; focus never lost.</p>
+  </div>
+</details>
+
+<details>
+  <summary>UC-11 &mdash; Empty state <span class="badge badge-blue">MVP</span></summary>
+  <div class="body">
+    <p>First visit, zero comments &rarr; sidebar shows empty-state <em>"No comments yet. Select any text to leave the first."</em> plus a one-time dismissible tooltip on first selection. <strong>Post:</strong> reviewer discovers primary action without docs.</p>
+  </div>
+</details>
+
+<details>
+  <summary>UC-12 &mdash; Tunnel dropout during draft <span class="badge badge-yellow">P1</span></summary>
+  <div class="body">
+    <p>Offline detected or POST fails &rarr; draft saved to <code>localStorage</code> keyed by <code>(scenario, doc, anchor)</code> &rarr; banner <em>"Saved as draft &mdash; will retry when reconnected"</em> &rarr; auto-retry w/ exponential backoff (3 tries, 1s / 2s / 4s). Reload restores draft + re-highlights selection. <strong>Post:</strong> zero draft loss.</p>
+  </div>
+</details>
+
+<h3 id="ac-list">Acceptance Criteria</h3>
+<table>
+  <thead><tr><th>ID</th><th>Priority</th><th>Given / When / Then</th></tr></thead>
+  <tbody>
+    <tr><td>AC-1</td><td><span class="badge badge-red">P0</span></td><td><strong>Anchor correctness.</strong> Given a selection in one section, when posted, then stored <code>anchor.sectionId = enclosing [data-section-id]</code> and <code>prefix+exact+suffix</code> uniquely identifies the span within the section.</td></tr>
+    <tr><td>AC-2</td><td><span class="badge badge-red">P0</span></td><td><strong>Attribution.</strong> Given session name "alice", when a comment is posted, then <code>author: "alice"</code> is written and rendered; server ignores any <code>author</code> in the request body.</td></tr>
+    <tr><td>AC-3</td><td><span class="badge badge-red">P0</span></td><td><strong>Re-anchor.</strong> Given N comments, doc regenerated with &le; 20% per-section text churn and preserved section IDs, when reopened, then &ge; 90% re-anchor exact/fuzzy, rest surface in "Needs reattachment."</td></tr>
+    <tr><td>AC-4</td><td><span class="badge badge-red">P0</span></td><td><strong>Resolve semantics.</strong> <em>Open decision</em> &mdash; see &sect;2. PM position: host-only. Architect position: any auth user. Writer did not resolve.</td></tr>
+    <tr><td>AC-5</td><td><span class="badge badge-red">P0</span></td><td><strong>Path traversal.</strong> Given <code>POST /api/comments/../../etc/passwd/doc</code>, when parsed, then 400 + security log event; no file read/write outside <code>plans/&lt;scenario&gt;/.comments/</code>.</td></tr>
+    <tr><td>AC-6</td><td><span class="badge badge-red">P0</span></td><td><strong>XSS.</strong> Given body <code>&lt;img src=x onerror=alert(1)&gt;</code>, when rendered, then shown as text; no script executes; automated test covers payload list.</td></tr>
+    <tr><td>AC-7</td><td><span class="badge badge-red">P0</span></td><td><strong>Rate limit visible.</strong> Given 10 posts in 60s, when 11th attempted, then 429 + UI countdown + disabled submit until window clears.</td></tr>
+    <tr><td>AC-8</td><td><span class="badge badge-yellow">P1</span></td><td><strong>Keyboard a11y.</strong> Given keyboard-only reviewer, when <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd> after selection, then composer opens, focus in textarea, <kbd>Esc</kbd> returns focus, NVDA/JAWS/VoiceOver announce composer + referenced text.</td></tr>
+    <tr><td>AC-9</td><td><span class="badge badge-yellow">P1</span></td><td><strong>Orphan UX.</strong> Given an orphaned comment, when sidebar opens, then pinned "Needs reattachment" group at top with amber dot, original <code>exact</code> quote shown.</td></tr>
+    <tr><td>AC-10</td><td><span class="badge badge-yellow">P1</span></td><td><strong>Durable append.</strong> Given two simultaneous reviewers, when both POST, then both appear in JSONL, no interleaving/loss (tested with 50 parallel posts).</td></tr>
+    <tr><td>AC-11</td><td><span class="badge badge-yellow">P1</span></td><td><strong>Edit window.</strong> Given comment at t0, when edit at t0+11min, then UI disables Edit + server returns 403 <code>edit_window_expired</code>.</td></tr>
+    <tr><td>AC-12</td><td><span class="badge badge-yellow">P1</span></td><td><strong>Theme parity.</strong> Given dark mode, when highlights/sidebar/badges render, then contrast &ge; WCAG AA (4.5:1 text, 3:1 graphics).</td></tr>
+    <tr><td>AC-13</td><td><span class="badge badge-purple">P2</span></td><td><strong>Export PDF.</strong> Given doc with 5 resolved + 7 unresolved, when host exports with "include comments" on, then PDF has numbered margin refs + Review appendix; resolved dimmed.</td></tr>
+    <tr><td>AC-14</td><td><span class="badge badge-purple">P2</span></td><td><strong>Unread badge.</strong> Given host's last dashboard visit at t0, when new comments posted after t0, then card shows <em>"+N new"</em> until each thread viewed (cursor in host localStorage).</td></tr>
+    <tr><td>AC-15</td><td><span class="badge badge-red">P0</span></td><td><strong>Never silent fail.</strong> Given disk full, when POST attempted, then 507 + clear error + client shows <em>"Couldn't save &mdash; disk full on host"</em>; never 200 without a durable write.</td></tr>
+  </tbody>
+</table>
+
+<!-- ============ 8. IMPLEMENTATION OVERVIEW ============ -->
+<h2 id="implementation-overview">8. Implementation Overview</h2>
+<p>The full implementation plan lives in <a href="implementation-plan.html"><code>implementation-plan.html</code></a> (upcoming). This section captures the Architect's build sequence at the phase level with complexity estimates.</p>
+
+<div class="phase">
+  <div class="phase-num">1</div>
+  <div class="phase-body">
+    <div class="phase-title">Stable Section IDs <span class="badge badge-green">Low complexity</span> <span class="badge badge-blue">prerequisite</span> <span class="badge badge-gray">shippable alone</span></div>
+    <div class="phase-desc">Add <code>computeSectionId(title, parentChain, depth)</code> using SHA-256 truncated 16-hex; collision loop; refactor emitters; inject <code>window.__PLAN_HARNESS_META__</code>; verify IDs stable across two runs. Files: <code>src/templates/base.js</code>.</div>
+  </div>
+</div>
+
+<div class="phase">
+  <div class="phase-num">2</div>
+  <div class="phase-body">
+    <div class="phase-title">Server Infrastructure <span class="badge badge-yellow">Medium complexity</span></div>
+    <div class="phase-desc">Create <code>comment-manager.js</code> with list/append/patch/delete/reanchor; JSONL event-log collapse on read; re-anchor cascade exact &rarr; section-scoped exact &rarr; Jaccard 0.72; SSE registry; token-bucket rate limiter 5/10s/session; add 5 routes + path safety; register <code>plan_reanchor</code>. Files: <code>src/comment-manager.js</code> (new), <code>src/web-server.js</code>, <code>src/index.js</code>.</div>
+  </div>
+</div>
+
+<div class="phase">
+  <div class="phase-num">3</div>
+  <div class="phase-body">
+    <div class="phase-title">Client Widget <span class="badge badge-red">High complexity</span></div>
+    <div class="phase-desc"><code>SelectionDetector</code> (mouseup &rarr; Range &rarr; Anchor, walk ancestors for <code>^sec-</code>); <code>CommentComposer</code> (floating button via <code>getBoundingClientRect</code>, sidebar); <code>SidebarRenderer</code> (thread tree, <code>&lt;mark&gt;</code> highlights, resolve/delete controls); <code>ApiClient</code> (fetch + EventSource); <code>/api/me</code> on load; all inlined in <code>base.js</code> (~15KB).</div>
+  </div>
+</div>
+
+<div class="phase">
+  <div class="phase-num">4</div>
+  <div class="phase-body">
+    <div class="phase-title">Orphan UX <span class="badge badge-green">Low complexity</span></div>
+    <div class="phase-desc">Pinned "Orphaned Comments" collapsible section at top of sidebar; show <code>anchor.exact</code> in a <code>&lt;blockquote&gt;</code>; <em>Reattach</em> and <em>Archive</em> actions.</div>
+  </div>
+</div>
+
+<div class="phase">
+  <div class="phase-num">5</div>
+  <div class="phase-body">
+    <div class="phase-title">Hardening + Self-Dev Loop <span class="badge badge-yellow">Medium complexity</span></div>
+    <div class="phase-desc"><code>npm run dev</code>; regenerate <code>built-in-comment-ui/design.html</code>; smoke-test loopback create &rarr; JSONL + SSE + sidebar; smoke-test regen + reanchor; verify widget does not break existing interactivity.</div>
+  </div>
+</div>
+
+<h3 id="impl-files">New &amp; Modified Files</h3>
+<table>
+  <thead><tr><th>File</th><th>Change</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td><code>plan-harness/local-proxy/src/comment-manager.js</code></td><td><span class="badge badge-green">new</span></td><td>JSONL CRUD, re-anchor, rate limiter, SSE registry.</td></tr>
+    <tr><td><code>plan-harness/local-proxy/src/web-server.js</code></td><td><span class="badge badge-yellow">modified</span></td><td>5 comment routes + 1 SSE route in <code>handleRequest</code>; imports comment-manager.</td></tr>
+    <tr><td><code>plan-harness/local-proxy/src/templates/base.js</code></td><td><span class="badge badge-yellow">modified</span></td><td>Section-id helper; meta tag; inline widget CSS + JS.</td></tr>
+    <tr><td><code>plan-harness/local-proxy/src/index.js</code></td><td><span class="badge badge-yellow">modified</span></td><td>Register <code>plan_reanchor</code> MCP tool.</td></tr>
+  </tbody>
+</table>
+
+<!-- ============ 9. SECURITY ============ -->
+<h2 id="security">9. Security &amp; Access Control</h2>
+
+<h3 id="sec-perms">Permission Matrix</h3>
+<table>
+  <thead><tr><th>Action</th><th>Loopback (host)</th><th>Authenticated remote</th><th>Unauthenticated</th></tr></thead>
+  <tbody>
+    <tr><td>GET comments</td><td><span class="badge badge-green">Yes</span></td><td><span class="badge badge-green">Yes</span></td><td><span class="badge badge-red">401</span></td></tr>
+    <tr><td>POST comment</td><td><span class="badge badge-green">Yes</span></td><td><span class="badge badge-green">Yes</span></td><td><span class="badge badge-red">401</span></td></tr>
+    <tr><td>PATCH body</td><td><span class="badge badge-green">Yes (any)</span></td><td><span class="badge badge-yellow">Own only</span></td><td><span class="badge badge-red">401</span></td></tr>
+    <tr><td>PATCH resolved <span class="badge badge-purple">Open</span></td><td><span class="badge badge-green">Yes (any)</span></td><td><span class="badge badge-green">Yes (any)</span> <em>[Architect]</em> / <span class="badge badge-red">No</span> <em>[PM]</em></td><td><span class="badge badge-red">401</span></td></tr>
+    <tr><td>DELETE</td><td><span class="badge badge-green">Yes (any)</span></td><td><span class="badge badge-yellow">Own only</span></td><td><span class="badge badge-red">401</span></td></tr>
+    <tr><td>SSE stream</td><td><span class="badge badge-green">Yes</span></td><td><span class="badge badge-green">Yes</span></td><td><span class="badge badge-red">401</span></td></tr>
+  </tbody>
+</table>
+
+<h3 id="sec-csrf">CSRF Posture</h3>
+<div class="callout callout-decision">
+  <div class="callout-title"><span class="badge badge-purple">Decision</span> No HMAC CSRF token</div>
+  <p>The session cookie is already <code>SameSite=Strict; HttpOnly; Secure</code>. Cross-site form / fetch with cookies is blocked by the browser. Adding a CSRF token buys minimal marginal security in this threat model while costing 40+ lines of server code and introducing a cache-staleness failure mode. If the threat model changes (e.g., <code>SameSite</code> relaxed), revisit.</p>
+</div>
+
+<h3 id="sec-attribution">Attribution Integrity</h3>
+<p><code>author</code> is stamped server-side from <code>req.user</code> (or the loopback sentinel <code>"Host (local)"</code>). Any client-supplied <code>author</code> field is ignored silently. This is enforced in one place in <code>comment-manager.appendComment</code>, not by route-level validation, to eliminate the class of "forgot to validate on the new route" bugs.</p>
+
+<h3 id="sec-path">Path Safety</h3>
+<ul>
+  <li>Route params must match <code>^[a-zA-Z0-9_-]+$</code> and be &le; 80 chars.</li>
+  <li>Resolved filesystem path must <code>startsWith(plansRoot + sep)</code> after <code>path.resolve()</code>. Rejects <code>..</code>, backslashes, null bytes, absolute paths.</li>
+  <li><code>.comments/</code> created via <code>fs.mkdir({ recursive: true })</code>.</li>
+  <li>Windows: the regex rejects both <code>/</code> and <code>\</code>; the <code>startsWith</code> check uses <code>path.sep</code>.</li>
+</ul>
+
+<h3 id="sec-audit">Audit Log</h3>
+<p>Every mutation writes a single line to <code>stderr</code> (unparsed by stdout JSON-RPC). Host can <code>tee</code> to a file if needed.</p>
+<ul>
+  <li><code>[comments] POST &lt;scenario&gt;/&lt;doc&gt; author=&lt;name&gt; id=&lt;id&gt;</code></li>
+  <li><code>[comments] PATCH &lt;id&gt; field=resolved value=true actor=&lt;name&gt;</code></li>
+  <li><code>[comments] DELETE &lt;id&gt; actor=&lt;name&gt;</code></li>
+  <li><code>[comments] reanchor &lt;scenario&gt;/&lt;doc&gt; held=N migrated=M orphaned=K</code></li>
+  <li><code>[comments] SSE client connected / disconnected (sid=...)</code></li>
+  <li><code>[comments] BLOCKED path-traversal param=&lt;raw&gt; ip=&lt;...&gt;</code> (on rejection)</li>
+</ul>
+
+<!-- ============ 10. RISKS ============ -->
+<h2 id="risks">10. Risk Analysis</h2>
+<p>Likelihood (L) and Impact (I) are rated <span class="badge badge-red">H</span> / <span class="badge badge-yellow">M</span> / <span class="badge badge-green">L</span>.</p>
+
+<div class="risk-grid">
+  <div class="risk-card">
+    <div class="risk-head">
+      <span class="risk-id">R-1</span>
+      <span class="risk-title">Regen invalidates anchors &rarr; orphan explosion</span>
+      <span class="badge badge-red">L:H</span><span class="badge badge-red">I:H</span>
+    </div>
+    <div class="risk-body">A naive regen resets every id and every anchor becomes orphaned. Review trust collapses.</div>
+    <div class="risk-mit"><strong>Mitigate:</strong> stable deterministic <code>sectionId</code>s; Levenshtein 0.85 / Jaccard 0.72 fuzzy tier; orphan bucket recoverable, not catastrophic; stderr telemetry; target orphan rate &lt; 10%.</div>
+  </div>
+
+  <div class="risk-card">
+    <div class="risk-head">
+      <span class="risk-id">R-2</span>
+      <span class="risk-title">Reviewer spam</span>
+      <span class="badge badge-yellow">L:M</span><span class="badge badge-yellow">I:M</span>
+    </div>
+    <div class="risk-body">A bad actor (or a bored one) fires hundreds of comments over the tunnel.</div>
+    <div class="risk-mit"><strong>Mitigate:</strong> rate limit 10/min + 100/hour per session; visible countdown; host <code>plan_share_stop</code> kicks everyone; future per-session purge.</div>
+  </div>
+
+  <div class="risk-card">
+    <div class="risk-head">
+      <span class="risk-id">R-3</span>
+      <span class="risk-title">Path traversal</span>
+      <span class="badge badge-yellow">L:M</span><span class="badge badge-red">I:H</span>
+    </div>
+    <div class="risk-body"><code>../</code> or <code>\\</code> in scenario / doc params could read or write outside <code>plans/</code>.</div>
+    <div class="risk-mit"><strong>Mitigate:</strong> allowlist via <code>plan_list_scenarios</code>; reject <code>..</code> / <code>\\</code> / null / absolute; reuse scenario-name sanitizer; unit tests with a published attack list.</div>
+  </div>
+
+  <div class="risk-card">
+    <div class="risk-head">
+      <span class="risk-id">R-4</span>
+      <span class="risk-title">Loss on disk-full / concurrent writes</span>
+      <span class="badge badge-yellow">L:M</span><span class="badge badge-red">I:H</span>
+    </div>
+    <div class="risk-body">Simultaneous <code>appendFile</code> calls interleave, or ENOSPC silently drops data.</div>
+    <div class="risk-mit"><strong>Mitigate:</strong> <code>O_APPEND</code>; per-file mutex; <code>fsync</code>; 507 on ENOSPC (never silent 200); 50-parallel stress test.</div>
+  </div>
+
+  <div class="risk-card">
+    <div class="risk-head">
+      <span class="risk-id">R-5</span>
+      <span class="risk-title">XSS via comment body</span>
+      <span class="badge badge-yellow">L:M</span><span class="badge badge-red">I:H</span>
+    </div>
+    <div class="risk-body">Reviewer submits <code>&lt;img onerror&gt;</code>; renders as script if stored and re-inserted raw.</div>
+    <div class="risk-mit"><strong>Mitigate:</strong> escape on output via <code>textContent</code>; CSP <code>default-src 'self'</code>; payload-list unit test; same escape applied to <code>author</code>.</div>
+  </div>
+
+  <div class="risk-card">
+    <div class="risk-head">
+      <span class="risk-id">R-6</span>
+      <span class="risk-title">Reviewers don't discover the button</span>
+      <span class="badge badge-yellow">L:M</span><span class="badge badge-yellow">I:M</span>
+    </div>
+    <div class="risk-body">Selection &rarr; button is a learned pattern. First-timers may never find it.</div>
+    <div class="risk-mit"><strong>Mitigate:</strong> first-visit tooltip; empty-state CTA in sidebar; <kbd>?</kbd> cheat-sheet overlay; TTFC metric &lt; 30s p50; iterate if it misses.</div>
+  </div>
+
+  <div class="risk-card">
+    <div class="risk-head">
+      <span class="risk-id">R-7</span>
+      <span class="risk-title">Tunnel drop loses drafts</span>
+      <span class="badge badge-red">L:H</span><span class="badge badge-yellow">I:M</span>
+    </div>
+    <div class="risk-body">devtunnel flakes mid-compose; the draft is gone.</div>
+    <div class="risk-mit"><strong>Mitigate:</strong> <code>localStorage</code> draft keyed by <code>(scenario, doc, anchor)</code>; auto-retry exp backoff (1s / 2s / 4s); banner + restore-on-reload.</div>
+  </div>
+
+  <div class="risk-card">
+    <div class="risk-head">
+      <span class="risk-id">R-8</span>
+      <span class="risk-title">Self-dev recursion</span>
+      <span class="badge badge-green">L:L</span><span class="badge badge-yellow">I:M</span>
+    </div>
+    <div class="risk-body">Editing plan-harness while reading its own design comments; commenting on a doc about the comment widget; reviewer noise leaking into the plugin repo.</div>
+    <div class="risk-mit"><strong>Mitigate:</strong> document in README; separate port for self-dev vs consumer; <code>.gitignore</code> <code>.comments/</code> in the plugin repo.</div>
+  </div>
+
+  <div class="risk-card">
+    <div class="risk-head">
+      <span class="risk-id">R-9</span>
+      <span class="risk-title">Password-shared tunnel exposes comments</span>
+      <span class="badge badge-yellow">L:M</span><span class="badge badge-yellow">I:M</span>
+    </div>
+    <div class="risk-body">Anyone with the tunnel URL + password can read (and write) every comment.</div>
+    <div class="risk-mit"><strong>Mitigate:</strong> document clearly in <code>plan_share</code> output; per-share password rotation; session TTL enforced in <code>auth.js</code>; future revoke-session API.</div>
+  </div>
+
+  <div class="risk-card">
+    <div class="risk-head">
+      <span class="risk-id">R-10</span>
+      <span class="risk-title">JSONL grows unbounded long-term</span>
+      <span class="badge badge-green">L:L</span><span class="badge badge-green">I:L</span>
+    </div>
+    <div class="risk-body">10k comments ~ 2&nbsp;MB; 100k ~ 20&nbsp;MB. Eventually parsing gets slow.</div>
+    <div class="risk-mit"><strong>Mitigate:</strong> acceptable at expected scale; compaction deferred; note in <code>ROADMAP.md</code>; revisit if we see &gt; 10 MB in the wild.</div>
+  </div>
+</div>
+
+</main>
+
+<script>
+(function() {
+  // Theme cycling: system -> light -> dark -> system ...
+  var KEY = 'plan-harness-theme';
+  var NEXT = { system: 'light', light: 'dark', dark: 'system' };
+  var html = document.documentElement;
+  var toggle = document.getElementById('themeToggle');
+
+  function resolvePref(pref) {
+    if (pref === 'dark') return 'dark';
+    if (pref === 'light') return 'light';
+    return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  function applyPref(pref) {
+    try { localStorage.setItem(KEY, pref); } catch(e) {}
+    html.setAttribute('data-theme', resolvePref(pref));
+    html.setAttribute('data-theme-pref', pref);
+    if (toggle) {
+      toggle.setAttribute('data-theme-pref', pref);
+      toggle.setAttribute('aria-label', 'Theme: ' + pref + ' (click to cycle)');
+      toggle.setAttribute('title', 'Theme: ' + pref + ' -- click to cycle');
+    }
+  }
+
+  var currentPref = (function() { try { return localStorage.getItem(KEY); } catch(e) { return null; } })() || 'system';
+  applyPref(currentPref);
+
+  if (toggle) {
+    toggle.addEventListener('click', function() {
+      var pref = (function() { try { return localStorage.getItem(KEY); } catch(e) { return null; } })() || 'system';
+      applyPref(NEXT[pref] || 'system');
+    });
+  }
+
+  // Follow the OS setting live while the user is in "system" mode.
+  try {
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+      var pref = (function() { try { return localStorage.getItem(KEY); } catch(e) { return null; } })() || 'system';
+      if (pref === 'system') applyPref('system');
+    });
+  } catch(e) {}
+
+  // Cross-tab / cross-document sync: any other plan-harness page that cycles
+  // the theme fires a "storage" event that lets us update without reloading.
+  window.addEventListener('storage', function(e) {
+    if (e.key === KEY && e.newValue) applyPref(e.newValue);
+  });
+
+  // Active-section highlight on scroll
+  var navLinks = document.querySelectorAll('.section-nav a[href^="#"]');
+  var sections = [];
+  navLinks.forEach(function(link) {
+    var id = link.getAttribute('href').slice(1);
+    var el = document.getElementById(id);
+    if (el) sections.push({ id: id, el: el, link: link });
+  });
+
+  function updateActive() {
+    var scrollY = window.scrollY + 120;
+    var current = null;
+    for (var i = sections.length - 1; i >= 0; i--) {
+      if (sections[i].el.offsetTop <= scrollY) { current = sections[i]; break; }
+    }
+    navLinks.forEach(function(l) { l.classList.remove('active'); });
+    if (current) current.link.classList.add('active');
+  }
+  window.addEventListener('scroll', updateActive, { passive: true });
+  updateActive();
+})();
+</script>
+
+</body>
+</html>
