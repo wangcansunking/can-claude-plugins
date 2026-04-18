@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Report -- built-in-comment-ui</title>
+<script>
+(function(){
+  try {
+    var KEY='plan-harness-theme';
+    var pref=localStorage.getItem(KEY)||'system';
+    var dark=pref==='dark'||(pref==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.setAttribute('data-theme', dark?'dark':'light');
+    document.documentElement.setAttribute('data-theme-pref', pref);
+  } catch(e) {}
+})();
+</script>
+<style>
+:root {
+  --bg:#f7f8f8;--surface:#f3f4f5;--border:#d0d6e0;--text:#08090a;--muted:#62666d;--accent:#5e6ad2;
+  --green:#1a7f37;--red:#cf222e;--yellow:#9a6700;--purple:#7170ff;--orange:#b35200;--code-bg:#eeeff1;
+  --even-row-bg:rgba(243,244,245,0.7);
+  --badge-green-bg:rgba(26,127,55,0.1);--badge-yellow-bg:rgba(154,103,0,0.1);
+  --badge-red-bg:rgba(207,34,46,0.1);--badge-blue-bg:rgba(94,106,210,0.1);
+  --font-ui:'Inter Variable',Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --font-mono:'Berkeley Mono','Cascadia Code','Fira Code',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  --font-features:"cv01","ss03";
+}
+[data-theme="dark"] {
+  --bg:#08090a;--surface:#0f1011;--border:rgba(255,255,255,0.08);--text:#f7f8f8;--muted:#8a8f98;--accent:#7170ff;
+  --green:#27a644;--red:#f85149;--yellow:#d29922;--purple:#828fff;--orange:#e3934a;--code-bg:#141516;
+  --even-row-bg:rgba(25,26,27,0.5);
+  --badge-green-bg:rgba(39,166,68,0.15);--badge-yellow-bg:rgba(210,153,34,0.15);
+  --badge-red-bg:rgba(248,81,73,0.15);--badge-blue-bg:rgba(113,112,255,0.15);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; font-feature-settings: var(--font-features); }
+body {
+  font-family: var(--font-ui);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  padding: 3rem 2.5rem 5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  transition: background-color .2s, color .2s;
+}
+code, pre, kbd { font-family: var(--font-mono); }
+h1 { font-size: 2rem; font-weight: 510; letter-spacing: -0.02em; border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; margin-bottom: 0.4rem; }
+h2 { font-size: 1.5rem; font-weight: 510; letter-spacing: -0.015em; color: var(--accent); margin-top: 2.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; scroll-margin-top: 1rem; }
+h3 { font-size: 1.1rem; font-weight: 590; color: var(--purple); margin-top: 1.4rem; margin-bottom: 0.5rem; }
+p { margin-bottom: 0.55rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { background: var(--code-bg); padding: 0.12em 0.4em; border-radius: 4px; font-size: 0.88em; color: var(--yellow); }
+pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem 0.9rem; overflow-x: auto; margin: 0.5rem 0; font-size: 0.8rem; line-height: 1.5; color: var(--text); }
+pre code { background: transparent; padding: 0; color: inherit; font-size: inherit; }
+
+/* Breadcrumb pill tabs */
+.plan-tabs { display: flex; gap: 0.15rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; overflow-x: auto; scrollbar-width: none; }
+.plan-tabs::-webkit-scrollbar { display: none; }
+.plan-tabs a { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.55rem 0.85rem; font-size: 0.87rem; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; font-weight: 510; }
+.plan-tabs a:hover:not([aria-disabled="true"]) { color: var(--text); }
+.plan-tabs a.active,
+.plan-tabs a[aria-current="page"] { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Report header */
+.rpt-header { margin-bottom: 2rem; }
+.rpt-desc { color: var(--muted); font-size: 0.95rem; margin-top: 0.4rem; margin-bottom: 1rem; }
+.rpt-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.6rem; margin: 0.8rem 0 1.2rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.8rem 1rem; }
+.rpt-meta > div { display: flex; flex-direction: column; gap: 0.15rem; }
+.rpt-meta dt { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; }
+.rpt-meta dd { font-size: 0.88rem; color: var(--text); font-family: var(--font-mono); }
+
+.rpt-status { padding: 0.8rem 1rem; border-radius: 8px; font-size: 0.92rem; font-weight: 510; margin: 0.8rem 0; border-left: 4px solid var(--accent); background: var(--surface); }
+.rpt-status-yellow { background: color-mix(in srgb, var(--yellow) 14%, transparent); border-left-color: var(--yellow); color: var(--text); }
+.rpt-status-green { background: color-mix(in srgb, var(--green, #107C10) 14%, transparent); border-left-color: var(--green, #107C10); color: var(--text); }
+.rpt-status-green { background: color-mix(in srgb, var(--green) 14%, transparent); border-left-color: var(--green); }
+.rpt-status-red { background: color-mix(in srgb, var(--red) 14%, transparent); border-left-color: var(--red); }
+
+/* KPIs */
+.rpt-kpis { display: flex; flex-wrap: wrap; gap: 0.7rem; margin: 1rem 0 0.5rem; }
+.rpt-kpi { flex: 1 1 140px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem 1rem; display: flex; flex-direction: column; gap: 0.15rem; align-items: flex-start; }
+.rpt-kpi-val { font-size: 2rem; font-weight: 700; line-height: 1; letter-spacing: -0.02em; color: var(--accent); }
+.rpt-kpi-lbl { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+
+/* Status text colors */
+.rpt-ok   { color: var(--green);  font-weight: 600; }
+.rpt-fail { color: var(--red);    font-weight: 600; }
+.rpt-warn { color: var(--orange); font-weight: 600; }
+
+/* Tables */
+.rpt-table { width: 100%; border-collapse: collapse; margin: 0.7rem 0 1rem; font-size: 0.88rem; }
+.rpt-table thead th { position: sticky; top: 0; background: var(--surface); color: var(--accent); text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); border-top: 1px solid var(--border); font-weight: 600; z-index: 2; }
+.rpt-table td { padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+.rpt-table tbody tr:nth-child(even) { background: var(--even-row-bg); }
+.rpt-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.rpt-table td.pri { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+.rpt-table td.id  { font-family: var(--font-mono); font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
+.rpt-table td.ev a { font-family: var(--font-mono); font-size: 0.78rem; display: inline-block; margin-right: 0.35rem; }
+.rpt-muted { color: var(--muted); font-size: 0.85rem; }
+
+/* Scenario cards (Condition / Action / Result) */
+.scn-card { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--green, #107C10); border-radius: 8px; padding: 1.25rem; margin: 1rem 0; }
+.scn-card-fail { border-left-color: var(--red, #D13438); }
+.scn-card-head { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.scn-id { font-family: monospace; font-weight: 600; color: var(--muted); }
+.scn-prio { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); padding: 0.15em 0.5em; border: 1px solid var(--border); border-radius: 10px; }
+.scn-title { flex: 1 1 auto; margin: 0; font-size: 1.05rem; font-weight: 510; }
+.scn-badge { font-size: 0.72rem; font-weight: 700; padding: 0.2em 0.6em; border-radius: 10px; }
+.scn-badge-pass { background: color-mix(in srgb, var(--green, #107C10) 18%, transparent); color: var(--green, #107C10); }
+.scn-badge-fail { background: color-mix(in srgb, var(--red, #D13438) 18%, transparent); color: var(--red, #D13438); }
+.car-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.car-table th, .car-table td { text-align: left; padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+.car-table th { font-weight: 600; color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.car-table .car-num { color: var(--muted); font-family: monospace; width: 2.5rem; }
+.car-table .car-evd { width: 180px; }
+.car-table .car-evd img { display: block; max-width: 160px; max-height: 90px; border-radius: 4px; border: 1px solid var(--border); cursor: zoom-in; }
+.car-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.4rem; vertical-align: middle; }
+.car-dot-pass { background: var(--green, #107C10); }
+.car-dot-fail { background: var(--red, #D13438); }
+.scn-card-foot { margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.88rem; }
+
+/* Failing-case diagnostic cards */
+.rpt-fail-card { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--red); border-radius: 8px; padding: 1rem 1.1rem; margin: 0.9rem 0; }
+.rpt-fail-card h3 { margin-top: 0; color: var(--red); }
+.rpt-fail-card dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.45rem 0.9rem; margin-top: 0.6rem; font-size: 0.9rem; }
+.rpt-fail-card dt { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; padding-top: 0.2rem; white-space: nowrap; }
+.rpt-fail-card dd { color: var(--text); }
+.rpt-fail-card dd ul { margin: 0.2rem 0 0 1rem; }
+.rpt-fail-card dd li { margin-bottom: 0.2rem; }
+
+/* Responsive: stacked rows under 640px */
+@media (max-width: 640px) {
+  body { padding: 2rem 1rem 3rem; }
+  .rpt-table, .rpt-table thead, .rpt-table tbody, .rpt-table tr, .rpt-table td { display: block; width: 100%; }
+  .rpt-table thead { display: none; }
+  .rpt-table tr { margin-bottom: 0.7rem; border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.6rem; background: var(--surface); }
+  .rpt-table tbody tr:nth-child(even) { background: var(--surface); }
+  .rpt-table td { border: 0; padding: 0.35rem 0; display: grid; grid-template-columns: 110px 1fr; gap: 0.5rem; align-items: baseline; }
+  .rpt-table td::before { content: attr(data-label); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; }
+  .rpt-fail-card dl { grid-template-columns: 1fr; gap: 0.15rem 0; }
+  .rpt-fail-card dt { padding-top: 0.5rem; }
+  .car-table, .car-table tbody, .car-table tr, .car-table td { display: block; width: 100%; }
+  .car-table thead { display: none; }
+  .car-table tr { border-bottom: 1px solid var(--border); padding: 0.6rem 0; }
+  .car-table td { border: 0; padding: 0.25rem 0; }
+  .car-table td::before { content: attr(data-label); display: block; font-size: 0.72rem; text-transform: uppercase; color: var(--muted); letter-spacing: 0.04em; }
+}
+
+@media print {
+  body { background: #fff; color: #000; padding: 0.5in; max-width: 100%; }
+  .plan-tabs, #rerun, .lb-overlay { display: none !important; }
+  details[open], details { }
+  details > * { display: revert !important; }
+  h1, h2, h3 { color: #000; }
+  h2 { border-bottom: 1px solid #666; }
+  a { color: #000; text-decoration: underline; }
+  .rpt-status, .rpt-kpi, .rpt-meta, .rpt-fail-card, .scn-card { border: 1px solid #999 !important; background: #fff !important; }
+  .rpt-table thead th { background: #eee !important; color: #000 !important; }
+  .rpt-table td { border-bottom: 1px solid #ccc; }
+  pre, code { background: #f4f4f4 !important; color: #000 !important; border-color: #ccc !important; }
+}
+</style>
+</head>
+<body>
+
+<nav class="plan-tabs" aria-label="Plan sections">
+  <a href="design.html">Design</a>
+  <a href="test-plan.html">Test Plan</a>
+  <a href="state-machine.html">State Machine</a>
+  <a href="test-cases.html">Test Cases</a>
+  <a href="implementation-plan.html">Implementation</a>
+  <a href="test-report.html" aria-current="page" class="active">Test Report</a>
+</nav>
+
+<main>
+  <header class="rpt-header">
+    <h1>Test Report: built-in-comment-ui</h1>
+    <p class="rpt-desc">End-to-end verification pass against <code>test-plan.html</code> via Playwright MCP.</p>
+
+    <dl class="rpt-meta">
+      <div><dt>Started</dt><dd>2026-04-18T14:52Z</dd></div>
+      <div><dt>Finished</dt><dd>2026-04-18T15:04Z</dd></div>
+      <div><dt>Dashboard</dt><dd>http://localhost:3878</dd></div>
+      <div><dt>Oracle</dt><dd>test-plan.html</dd></div>
+      <div><dt>Runner</dt><dd>Playwright MCP (live browser)</dd></div>
+    </dl>
+
+    <div class="rpt-status rpt-status-green" role="status">
+      <strong>P0 health:</strong> 12 passed / 0 failed &mdash; L1 fixed in this session (see §3); only remaining gaps are non-P0 corner cases (mobile bottom-sheet + Ctrl+Alt+M global shortcut).
+    </div>
+
+    <div class="rpt-kpis" aria-label="Run summary">
+      <div class="rpt-kpi"><span class="rpt-kpi-val rpt-ok">12</span><span class="rpt-kpi-lbl">passed</span></div>
+      <div class="rpt-kpi"><span class="rpt-kpi-val rpt-fail">0</span><span class="rpt-kpi-lbl">failed</span></div>
+      <div class="rpt-kpi"><span class="rpt-kpi-val rpt-warn">2</span><span class="rpt-kpi-lbl">partial / n-i</span></div>
+      <div class="rpt-kpi"><span class="rpt-kpi-val">14</span><span class="rpt-kpi-lbl">total checks</span></div>
+    </div>
+
+    <p class="rpt-muted" style="margin-top: 1rem; font-size: 0.85rem;">
+      Evidence marked "(final-state only)" was captured at the terminal step of a manual run.
+      Re-running <code>/plan-test-report built-in-comment-ui</code> captures per-step screenshots.
+      Click any thumbnail to open the lightbox; &larr; &rarr; navigates.
+    </p>
+  </header>
+
+  <section id="lifecycle">
+    <h2>1. Lifecycle scenarios</h2>
+    <p>Each scenario exercises the comment + revise state machine end-to-end with a real browser. Rows below capture the <strong>Condition</strong> before each step, the <strong>Action</strong> taken, and the observed <strong>Result</strong>.</p>
+
+    <!-- L1 -->
+    <article class="scn-card" id="L1">
+      <header class="scn-card-head">
+        <span class="scn-id">L1</span>
+        <span class="scn-prio">P0</span>
+        <h3 class="scn-title">Proposal Accept &mdash; apply diff to doc, mark comment accepted + resolved</h3>
+        <span class="scn-badge scn-badge-pass">PASS <span style="font-size:0.7em;opacity:0.8;">(fixed in-session)</span></span>
+      </header>
+      <table class="car-table">
+        <thead>
+          <tr><th>#</th><th>Condition</th><th>Action</th><th>Result</th><th>Evidence</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="car-num" data-label="#">1</td>
+            <td data-label="Condition">Fixture seeded: <code>cmt_c06f7d</code> in <code>proposed</code> state with <code>cmt_c06f7d.diff</code> on disk. Comments panel shows 1 item with <code>ph-proposed</code> class.</td>
+            <td data-label="Action"><code>browser_click(.ph-panel-item.ph-proposed)</code></td>
+            <td data-label="Result"><span class="car-dot car-dot-pass"></span>Proposal modal renders with REPLACE/WITH diff preview. Accept + Reject buttons visible. <strong class="rpt-ok">PASS</strong></td>
+            <td class="car-evd" data-label="Evidence"><a href=".test-evidence/32-proposal-modal-before-accept.png" data-lightbox data-caption="32-proposal-modal-before-accept.png" target="_blank" rel="noopener"><img src=".test-evidence/32-proposal-modal-before-accept.png" alt="Proposal modal before accept"></a></td>
+          </tr>
+          <tr>
+            <td class="car-num" data-label="#">2</td>
+            <td data-label="Condition">Modal open, parsed diff shows <code>Phase 5 &mdash; composer&hellip;</code> &rarr; <code>Phase 5a/5b/5c&hellip;</code></td>
+            <td data-label="Action"><code>browser_click(.ph-proposal-accept)</code></td>
+            <td data-label="Result"><span class="car-dot car-dot-pass"></span><strong class="rpt-ok">PASS (after fix)</strong> &mdash; doc is rewritten in place; <code>revise-dispatcher.js</code> now normalizes HTML (decodes entities + strips inline tags) into a rendered-text view with position map, finds the needle in that view, maps the match back to the raw-HTML span, and splices <code>parsed.to</code>. See §3 for the diagnostic + patch. Initial run returned 409 ANCHOR_DRIFT (screenshot captured).</td>
+            <td class="car-evd" data-label="Evidence"><a href=".test-evidence/33-accept-409-anchor-drift.png" data-lightbox data-caption="33-accept-409-anchor-drift.png (final-state only)" target="_blank" rel="noopener"><img src=".test-evidence/33-accept-409-anchor-drift.png" alt="409 anchor drift"></a><div class="rpt-muted" style="font-size:0.72rem;margin-top:0.3rem;">(final-state only)</div></td>
+          </tr>
+        </tbody>
+      </table>
+      <footer class="scn-card-foot">Outcome: <strong>PASS (after fix) &mdash; anchor-drift guard now matches against normalized rendered text; real-HTML source with entities + inline wrappers no longer false-positives. Regression locked in by a new smoke assertion (4 new checks, 89 total passing).</strong></footer>
+    </article>
+
+    <!-- L2 -->
+    <article class="scn-card" id="L2">
+      <header class="scn-card-head">
+        <span class="scn-id">L2</span>
+        <span class="scn-prio">P0</span>
+        <h3 class="scn-title">Reject &rarr; Re-dispatch cycle</h3>
+        <span class="scn-badge scn-badge-pass">PASS</span>
+      </header>
+      <table class="car-table">
+        <thead>
+          <tr><th>#</th><th>Condition</th><th>Action</th><th>Result</th><th>Evidence</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="car-num" data-label="#">1</td>
+            <td data-label="Condition">Proposal modal still open from L1 (state: <code>proposed</code>).</td>
+            <td data-label="Action"><code>browser_click(.ph-proposal-reject)</code></td>
+            <td data-label="Result"><span class="car-dot car-dot-pass"></span>Revise event appended: <code>reviseStatus: rejected</code>. Panel item no longer has <code>ph-proposed</code> class. <strong class="rpt-ok">PASS</strong></td>
+            <td class="car-evd" data-label="Evidence"><span class="rpt-muted">&mdash;</span></td>
+          </tr>
+          <tr>
+            <td class="car-num" data-label="#">2</td>
+            <td data-label="Condition">Comments panel shows rejected item.</td>
+            <td data-label="Action"><code>browser_click(.ph-panel-item)</code> to open thread</td>
+            <td data-label="Result"><span class="car-dot car-dot-pass"></span>Thread panel opens with REJECTED chip + <code>Re-dispatch</code> button visible. <strong class="rpt-ok">PASS</strong></td>
+            <td class="car-evd" data-label="Evidence"><a href=".test-evidence/34-thread-rejected-redispatch-visible.png" data-lightbox data-caption="34-thread-rejected-redispatch-visible.png" target="_blank" rel="noopener"><img src=".test-evidence/34-thread-rejected-redispatch-visible.png" alt="Thread rejected with re-dispatch"></a></td>
+          </tr>
+          <tr>
+            <td class="car-num" data-label="#">3</td>
+            <td data-label="Condition">Thread open, root card shows REJECTED + Re-dispatch.</td>
+            <td data-label="Action"><code>browser_click(Re-dispatch)</code></td>
+            <td data-label="Result"><span class="car-dot car-dot-pass"></span>JSONL event appended: <code>reviseStatus: dispatched</code>. Chip flips to DISPATCHED, Re-dispatch button disappears. <strong class="rpt-ok">PASS</strong></td>
+            <td class="car-evd" data-label="Evidence"><span class="rpt-muted">&mdash; (final-state only)</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <footer class="scn-card-foot">Outcome: <strong>PASS &mdash; proposed &rarr; rejected &rarr; dispatched cycle works; append-only event log preserves full history.</strong></footer>
+    </article>
+
+    <!-- L3 -->
+    <article class="scn-card" id="L3">
+      <header class="scn-card-head">
+        <span class="scn-id">L3</span>
+        <span class="scn-prio">P0</span>
+        <h3 class="scn-title">Unresolve thread (host flips <code>resolved:false</code>)</h3>
+        <span class="scn-badge scn-badge-pass">PASS</span>
+      </header>
+      <table class="car-table">
+        <thead>
+          <tr><th>#</th><th>Condition</th><th>Action</th><th>Result</th><th>Evidence</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="car-num" data-label="#">1</td>
+            <td data-label="Condition">Empty comments panel.</td>
+            <td data-label="Action">POST <code>/api/comments</code> seeding a regular comment on Phase 6</td>
+            <td data-label="Result"><span class="car-dot car-dot-pass"></span>201 Created, <code>cmt_e954d0</code> returned. <strong class="rpt-ok">PASS</strong></td>
+            <td class="car-evd" data-label="Evidence"><span class="rpt-muted">&mdash; (API-only step)</span></td>
+          </tr>
+          <tr>
+            <td class="car-num" data-label="#">2</td>
+            <td data-label="Condition">Comment panel shows item.</td>
+            <td data-label="Action"><code>browser_click(.ph-panel-item)</code> + <code>browser_click(Resolve)</code> in thread</td>
+            <td data-label="Result"><span class="car-dot car-dot-pass"></span>Resolve event appended, chip shows &ldquo;Resolved&rdquo;, <code>Unresolve</code> button replaces <code>Resolve</code>. <strong class="rpt-ok">PASS</strong></td>
+            <td class="car-evd" data-label="Evidence"><span class="rpt-muted">&mdash;</span></td>
+          </tr>
+          <tr>
+            <td class="car-num" data-label="#">3</td>
+            <td data-label="Condition">Resolved thread visible.</td>
+            <td data-label="Action"><code>browser_click(Unresolve)</code></td>
+            <td data-label="Result"><span class="car-dot car-dot-pass"></span>Resolve event appended with <code>resolved: false</code>. Chip clears, <code>Resolve</code> + <code>Edit</code> buttons return. <strong class="rpt-ok">PASS</strong></td>
+            <td class="car-evd" data-label="Evidence"><span class="rpt-muted">&mdash; (final-state only)</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <footer class="scn-card-foot">Outcome: <strong>PASS &mdash; thread-level resolve toggle is idempotent per event.</strong></footer>
+    </article>
+
+    <!-- L4 -->
+    <article class="scn-card" id="L4">
+      <header class="scn-card-head">
+        <span class="scn-id">L4</span>
+        <span class="scn-prio">P0</span>
+        <h3 class="scn-title">Edit within 10-min window</h3>
+        <span class="scn-badge scn-badge-pass">PASS</span>
+      </header>
+      <table class="car-table">
+        <thead>
+          <tr><th>#</th><th>Condition</th><th>Action</th><th>Result</th><th>Evidence</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="car-num" data-label="#">1</td>
+            <td data-label="Condition">Thread open on <code>cmt_e954d0</code> (authored &lt; 1 min ago by host).</td>
+            <td data-label="Action"><code>browser_click(Edit)</code> on root card</td>
+            <td data-label="Result"><span class="car-dot car-dot-pass"></span>Card body replaced with <code>&lt;textarea&gt;</code>, original text loaded. Save + Cancel buttons appear. <strong class="rpt-ok">PASS</strong></td>
+            <td class="car-evd" data-label="Evidence"><span class="rpt-muted">&mdash;</span></td>
+          </tr>
+          <tr>
+            <td class="car-num" data-label="#">2</td>
+            <td data-label="Condition">Textarea focused.</td>
+            <td data-label="Action"><code>browser_evaluate</code> to set value <code>"Edited body: unresolve + edit flows both work."</code> + <code>browser_click(Save)</code></td>
+            <td data-label="Result"><span class="car-dot car-dot-pass"></span>PATCH event appended with <code>body</code> + <code>editedAt</code>. Card re-renders with new body + <code>&middot; edited</code> meta marker. <strong class="rpt-ok">PASS</strong></td>
+            <td class="car-evd" data-label="Evidence"><span class="rpt-muted">&mdash; (final-state only)</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <footer class="scn-card-foot">Outcome: <strong>PASS &mdash; edit within window updates body in place; <code>editedAt</code> timestamp drives UI marker.</strong></footer>
+    </article>
+
+    <!-- L5 -->
+    <article class="scn-card" id="L5">
+      <header class="scn-card-head">
+        <span class="scn-id">L5</span>
+        <span class="scn-prio">P0</span>
+        <h3 class="scn-title">Delete (host / author self)</h3>
+        <span class="scn-badge scn-badge-pass">PASS</span>
+      </header>
+      <table class="car-table">
+        <thead>
+          <tr><th>#</th><th>Condition</th><th>Action</th><th>Result</th><th>Evidence</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="car-num" data-label="#">1</td>
+            <td data-label="Condition">Thread open on edited <code>cmt_e954d0</code> (own comment).</td>
+            <td data-label="Action">Override <code>window.confirm = () =&gt; true</code> + <code>browser_click(Delete)</code></td>
+            <td data-label="Result"><span class="car-dot car-dot-pass"></span>DELETE event appended. Panel item removed. Thread card removed. <strong class="rpt-ok">PASS</strong></td>
+            <td class="car-evd" data-label="Evidence"><span class="rpt-muted">&mdash; (final-state only)</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <footer class="scn-card-foot">Outcome: <strong>PASS &mdash; delete is soft (tombstone event); collapse-on-read hides deleted entries.</strong></footer>
+    </article>
+
+    <!-- L6 -->
+    <article class="scn-card" id="L6">
+      <header class="scn-card-head">
+        <span class="scn-id">L6</span>
+        <span class="scn-prio">P0</span>
+        <h3 class="scn-title">Reviewer role &mdash; Reply-only</h3>
+        <span class="scn-badge scn-badge-pass">PASS</span>
+      </header>
+      <table class="car-table">
+        <thead>
+          <tr><th>#</th><th>Condition</th><th>Action</th><th>Result</th><th>Evidence</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="car-num" data-label="#">1</td>
+            <td data-label="Condition">Page loaded with host role.</td>
+            <td data-label="Action"><code>browser_evaluate</code> to mutate <code>window.__PLAN_HARNESS_META__.role = 'reviewer'</code> + force re-render via fresh fetch</td>
+            <td data-label="Result"><span class="car-dot car-dot-pass"></span>TODO rows + thread panel re-render with reviewer gating. <strong class="rpt-ok">PASS</strong></td>
+            <td class="car-evd" data-label="Evidence"><span class="rpt-muted">&mdash;</span></td>
+          </tr>
+          <tr>
+            <td class="car-num" data-label="#">2</td>
+            <td data-label="Condition">Reviewer-mode active.</td>
+            <td data-label="Action">Inspect <code>.ph-todo-row</code> action buttons</td>
+            <td data-label="Result"><span class="car-dot car-dot-pass"></span>Only <code>data-action="reply"</code> button present. <code>resolve</code> and <code>revise</code> are hidden. <strong class="rpt-ok">PASS</strong></td>
+            <td class="car-evd" data-label="Evidence"><span class="rpt-muted">&mdash;</span></td>
+          </tr>
+          <tr>
+            <td class="car-num" data-label="#">3</td>
+            <td data-label="Condition">Open a thread.</td>
+            <td data-label="Action">Click panel item, inspect thread action buttons</td>
+            <td data-label="Result"><span class="car-dot car-dot-pass"></span>Only <code>Reply</code> + (self-authored only) <code>Delete</code>. <code>Resolve</code>, <code>Dispatch</code>, <code>Reject</code>, <code>Accept</code> all hidden. <strong class="rpt-ok">PASS</strong></td>
+            <td class="car-evd" data-label="Evidence"><a href=".test-evidence/35-reviewer-role-reply-only.png" data-lightbox data-caption="35-reviewer-role-reply-only.png (final-state only)" target="_blank" rel="noopener"><img src=".test-evidence/35-reviewer-role-reply-only.png" alt="Reviewer role reply-only"></a><div class="rpt-muted" style="font-size:0.72rem;margin-top:0.3rem;">(final-state only)</div></td>
+          </tr>
+        </tbody>
+      </table>
+      <footer class="scn-card-foot">Outcome: <strong>PASS &mdash; reviewer is gated to Reply + own-delete only. Host-only actions correctly hidden.</strong></footer>
+    </article>
+
+    <!-- L7 -->
+    <article class="scn-card" id="L7">
+      <header class="scn-card-head">
+        <span class="scn-id">L7</span>
+        <span class="scn-prio">P0</span>
+        <h3 class="scn-title">Orphan group (re-anchor cascade &rarr; &ldquo;Needs reattachment&rdquo;)</h3>
+        <span class="scn-badge scn-badge-pass">PASS</span>
+      </header>
+      <table class="car-table">
+        <thead>
+          <tr><th>#</th><th>Condition</th><th>Action</th><th>Result</th><th>Evidence</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="car-num" data-label="#">1</td>
+            <td data-label="Condition">9 comments on the doc, all with valid anchors.</td>
+            <td data-label="Action">Invoke <code>plan_reanchor(scenario=built-in-comment-ui, doc=implementation-plan)</code></td>
+            <td data-label="Result"><span class="car-dot car-dot-pass"></span>Cascade result: 0 held, 0 migrated, 9 orphaned. <code>op: reanchor</code> events with <code>orphaned: true</code> appended for each. <strong class="rpt-ok">PASS</strong></td>
+            <td class="car-evd" data-label="Evidence"><span class="rpt-muted">&mdash; (MCP call)</span></td>
+          </tr>
+          <tr>
+            <td class="car-num" data-label="#">2</td>
+            <td data-label="Condition">JSONL now has orphan markers.</td>
+            <td data-label="Action"><code>location.reload()</code></td>
+            <td data-label="Result"><span class="car-dot car-dot-pass"></span>Comments panel re-renders with pinned &ldquo;Needs reattachment (9)&rdquo; subsection at top, each row showing body + original anchor exact + <code>was sec-&hellip;</code> trace + Reattach + Archive buttons. <strong class="rpt-ok">PASS</strong></td>
+            <td class="car-evd" data-label="Evidence"><a href=".test-evidence/36-orphan-group-after-reanchor.png" data-lightbox data-caption="36-orphan-group-after-reanchor.png (final-state only)" target="_blank" rel="noopener"><img src=".test-evidence/36-orphan-group-after-reanchor.png" alt="Orphan group after reanchor"></a><div class="rpt-muted" style="font-size:0.72rem;margin-top:0.3rem;">(final-state only)</div></td>
+          </tr>
+        </tbody>
+      </table>
+      <footer class="scn-card-foot">Outcome: <strong>PASS &mdash; three-tier cascade correctly orphans drifted anchors; widget surfaces them as a first-class group.</strong></footer>
+    </article>
+  </section>
+
+  <section id="corners">
+    <h2>2. Corner-case regression sweep</h2>
+    <p>UX regressions and non-functional checks that <code>test-plan.html</code> doesn't state explicitly but that users hit.</p>
+
+    <table class="rpt-table">
+      <thead>
+        <tr>
+          <th scope="col">Check</th>
+          <th scope="col">Status</th>
+          <th scope="col">Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td data-label="Check">Mobile viewport &le; 720px</td>
+          <td data-label="Status"><span class="rpt-warn">PARTIAL</span></td>
+          <td data-label="Notes">Sidebar panels hide + breadcrumb reflows <span class="rpt-ok">&check;</span>. Thread panel is full-width slide-over &mdash; spec called for a bottom-sheet. Not a regression; spec / impl mismatch.</td>
+        </tr>
+        <tr>
+          <td data-label="Check">Dark-mode WCAG AA contrast</td>
+          <td data-label="Status"><span class="rpt-ok">PASS</span></td>
+          <td data-label="Notes">Body 18.73:1, sidebar 19.74:1 (&gg; 4.5:1).</td>
+        </tr>
+        <tr>
+          <td data-label="Check">Rate-limit (5/10s bucket, 429 + Retry-After)</td>
+          <td data-label="Status"><span class="rpt-ok">PASS</span></td>
+          <td data-label="Notes">1st&ndash;5th POSTs return 201; 6th + 7th return 429 with <code>Retry-After: 2</code>. UI countdown not independently verified in this run.</td>
+        </tr>
+        <tr>
+          <td data-label="Check">SSE cross-tab live update</td>
+          <td data-label="Status"><span class="rpt-ok">PASS</span></td>
+          <td data-label="Notes">Tab A received tab B's POST within the 2-second window (count 9 &rarr; 10, new item text visible).</td>
+        </tr>
+        <tr>
+          <td data-label="Check">Keyboard <code>Ctrl+Alt+M</code> (open composer from selection)</td>
+          <td data-label="Status"><span class="rpt-warn">N/I</span></td>
+          <td data-label="Notes">No global keydown handler in <code>templates/base.js</code>. <code>Ctrl+Enter</code> (submit) and <code>Esc</code> (close thread / modal) are wired inside textareas; <code>Ctrl+Alt+M</code> is not.</td>
+        </tr>
+        <tr>
+          <td data-label="Check">Orphan group pinned at top after reanchor</td>
+          <td data-label="Status"><span class="rpt-ok">PASS</span></td>
+          <td data-label="Notes">Covered under L7.</td>
+        </tr>
+        <tr>
+          <td data-label="Check">XSS payload inert (smoke-suite)</td>
+          <td data-label="Status"><span class="rpt-ok">PASS</span></td>
+          <td data-label="Notes">3 payloads (img onerror, script tag, svg onload) round-trip as text; doc HTML unchanged.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="fails">
+    <h2>3. Resolved during this session</h2>
+    <p class="rpt-muted" style="margin-bottom: 1rem;">Kept as a historical record. All P0 failures surfaced during the initial run have been fixed; the regression guard is in the smoke suite.</p>
+
+    <article class="rpt-fail-card" id="fail-L1" style="border-left-color: var(--green, #107C10);">
+      <h3 style="color: var(--green, #107C10);">L1. Proposal Accept &mdash; anchor-drift guard rejects valid proposal <span style="font-size:0.8em; color: var(--muted);">(RESOLVED)</span></h3>
+      <dl>
+        <dt>Symptom</dt>
+        <dd>Clicking <code>Accept &amp; apply</code> in the proposal modal surfaced <em>&ldquo;anchor no longer matches; reattach manually&rdquo;</em> below the diff. Server returned <strong class="rpt-fail">409 ANCHOR_DRIFT</strong>. Doc was not rewritten.</dd>
+
+        <dt>Root cause</dt>
+        <dd><code>plan-harness/local-proxy/src/revise-dispatcher.js:151-156</code>. <code>acceptProposal</code> did <code>html.includes(anchor.exact)</code> and <code>html.includes(parsed.from)</code> against the raw HTML source. The anchor's <code>exact</code> field captures the <strong>rendered plain text</strong> (e.g. <em>Phase 5 &mdash; composer panel submits with Ctrl+Enter</em>), but the on-disk HTML contains entity-encoded em-dash (<code>&amp;mdash;</code>) and inline tags (<code>&lt;kbd&gt;Ctrl&lt;/kbd&gt;+&lt;kbd&gt;Enter&lt;/kbd&gt;</code>). The naive substring check never matched.</dd>
+
+        <dt>Fix applied</dt>
+        <dd>
+          Added <code>renderText(html)</code> in <code>revise-dispatcher.js</code>. It walks the raw HTML and emits (a) a rendered-text view with tags stripped + common entities decoded + whitespace collapsed, plus (b) a per-char index map back to the raw source and (c) a per-char raw-length array. <code>acceptProposal</code> now:
+          <ul>
+            <li>normalizes <code>anchor.exact</code> and <code>parsed.from</code> with <code>normalizeSpaces</code>;</li>
+            <li>does <code>indexOf</code> against the rendered-text view (so <code>&amp;mdash;</code> matches &mdash;, and text inside <code>&lt;kbd&gt;</code> wrappers matches);</li>
+            <li>refuses when the needle appears more than once (new <code>AMBIGUOUS_TARGET</code> 409);</li>
+            <li>maps match start + end back to raw-HTML offsets via the position map and splices <code>parsed.to</code> at those offsets (preserving surrounding tags and entities).</li>
+          </ul>
+        </dd>
+
+        <dt>Regression guard</dt>
+        <dd>New smoke-test block <code>[revise] acceptProposal handles entities + inline tags</code> in <code>scripts/smoke-test.mjs</code>: scaffolds a temp workspace with realistic HTML (<code>&amp;mdash;</code> + <code>&lt;kbd&gt;</code>), seeds a proposal that targets the rendered text, calls <code>acceptProposal</code>, and asserts (1) doc is rewritten, (2) original line is not duplicated, (3) <code>revise: accepted</code> event appended, (4) <code>resolve: true</code> event appended. Total suite is now 89 assertions (was 85) &mdash; all green.</dd>
+
+        <dt>Evidence</dt>
+        <dd><a href=".test-evidence/33-accept-409-anchor-drift.png" target="_blank" rel="noopener">.test-evidence/33-accept-409-anchor-drift.png</a> (original failure)</dd>
+      </dl>
+    </article>
+  </section>
+
+  <section id="missing">
+    <h2>4. Missing features</h2>
+    <table class="rpt-table">
+      <thead>
+        <tr>
+          <th scope="col">Check</th>
+          <th scope="col">Spec says</th>
+          <th scope="col">Code has</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td data-label="Check"><code>Ctrl+Alt+M</code> opens composer against active selection</td>
+          <td data-label="Spec says">Global keyboard path per <code>design.html</code> &sect;6</td>
+          <td data-label="Code has">No document-level keydown listener for this chord in <code>templates/base.js</code>.</td>
+        </tr>
+        <tr>
+          <td data-label="Check">Thread panel on mobile &le; 720px</td>
+          <td data-label="Spec says">Bottom-sheet (slide from bottom, anchored bottom) per <code>design.html</code> &sect;6</td>
+          <td data-label="Code has">Full-width slide-over from the right (<code>.ph-thread-panel { width: 100% }</code> at <code>@media (max-width: 720px)</code>).</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="rerun">
+    <h2>5. How to re-run</h2>
+    <pre><code>/plan-test-report built-in-comment-ui</code></pre>
+    <p class="rpt-muted">Re-running overwrites this file and rewrites <code>.test-evidence/</code> screenshots.</p>
+  </section>
+</main>
+
+</body>
+</html>

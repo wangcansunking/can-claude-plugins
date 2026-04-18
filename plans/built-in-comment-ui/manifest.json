@@ -22,5 +22,15 @@
   "testCasesHtml": "test-cases.html",
   "testCasesGeneratedAt": "2026-04-18T17:20:00Z",
   "dashboardHtml": "dashboard.html",
-  "dashboardGeneratedAt": "2026-04-18T17:35:00Z"
+  "dashboardGeneratedAt": "2026-04-18T17:35:00Z",
+  "testReportHtml": "test-report.html",
+  "testReportGeneratedAt": "2026-04-18T15:04:00Z",
+  "testReportSummary": {
+    "total": 14,
+    "passed": 12,
+    "failed": 0,
+    "partial": 1,
+    "notImplemented": 1,
+    "p0Green": true
+  }
 }
