@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Implementation Plan -- built-in-comment-ui</title>
+<script>
+(function(){
+  try {
+    var KEY='plan-harness-theme';
+    var pref=localStorage.getItem(KEY)||'system';
+    var dark=pref==='dark'||(pref==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.setAttribute('data-theme', dark?'dark':'light');
+    document.documentElement.setAttribute('data-theme-pref', pref);
+  } catch(e) {}
+})();
+</script>
+<style>
+:root {
+  --bg: #f7f8f8; --surface: #f3f4f5; --border: #d0d6e0;
+  --text: #08090a; --muted: #62666d; --accent: #5e6ad2;
+  --green: #1a7f37; --red: #cf222e; --yellow: #9a6700; --purple: #7170ff;
+  --orange: #b35200;
+  --code-bg: #eeeff1;
+  --svg-bg: #f3f4f5; --svg-bg2: #f7f8f8; --svg-text: #08090a;
+  --svg-muted: #62666d; --svg-border: #d0d6e0;
+  --even-row-bg: rgba(243,244,245,0.7);
+  --badge-green-bg: rgba(26,127,55,0.1); --badge-yellow-bg: rgba(154,103,0,0.1);
+  --badge-red-bg: rgba(207,34,46,0.1); --badge-blue-bg: rgba(94,106,210,0.1);
+  --badge-purple-bg: rgba(113,112,255,0.1);
+  --badge-orange-bg: rgba(179,82,0,0.1);
+  --shadow: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.08);
+  --radius: 8px; --radius-sm: 4px;
+  --font-ui: 'Inter Variable', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Berkeley Mono', 'Cascadia Code', 'Fira Code', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font-features: "cv01", "ss03";
+}
+[data-theme="dark"] {
+  --bg: #08090a; --surface: #0f1011; --border: rgba(255,255,255,0.08);
+  --text: #f7f8f8; --muted: #8a8f98; --accent: #7170ff;
+  --green: #27a644; --red: #f85149; --yellow: #d29922; --purple: #828fff;
+  --orange: #e3934a;
+  --code-bg: #141516;
+  --svg-bg: #0f1011; --svg-bg2: #08090a; --svg-text: #f7f8f8;
+  --svg-muted: #8a8f98; --svg-border: rgba(255,255,255,0.08);
+  --even-row-bg: rgba(25,26,27,0.5);
+  --badge-green-bg: rgba(39,166,68,0.15); --badge-yellow-bg: rgba(210,153,34,0.15);
+  --badge-red-bg: rgba(248,81,73,0.15); --badge-blue-bg: rgba(113,112,255,0.15);
+  --badge-purple-bg: rgba(130,143,255,0.15);
+  --badge-orange-bg: rgba(227,147,74,0.15);
+  --shadow: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; font-feature-settings: var(--font-features); }
+body {
+  font-family: var(--font-ui); background: var(--bg); color: var(--text);
+  line-height: 1.6; font-weight: 400; letter-spacing: -0.01em;
+  transition: background-color 0.2s, color 0.2s;
+  padding-left: 260px; padding-top: 3rem;
+}
+code, pre, kbd, samp { font-family: var(--font-mono); }
+
+h1 { font-size: 2rem; font-weight: 510; letter-spacing: -0.02em; border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; margin-bottom: 0.4rem; }
+h2 { font-size: 1.5rem; font-weight: 510; letter-spacing: -0.015em; color: var(--accent); margin-top: 3rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; scroll-margin-top: 1rem; }
+h3 { font-size: 1.15rem; font-weight: 590; letter-spacing: -0.01em; color: var(--purple); margin-top: 2rem; margin-bottom: 0.7rem; }
+h4 { font-size: 1rem; font-weight: 590; color: var(--green); margin-top: 1.5rem; margin-bottom: 0.5rem; }
+p, li { color: var(--text); margin-bottom: 0.5rem; }
+ul, ol { padding-left: 1.5rem; margin-bottom: 1rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.meta { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.2rem; }
+
+.plan-tabs { display: flex; gap: 0.15rem; border-bottom: 1px solid var(--border); margin-bottom: 1.8rem; overflow-x: auto; scrollbar-width: none; }
+.plan-tabs::-webkit-scrollbar { display: none; }
+.plan-tabs a { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.55rem 0.85rem; font-size: 0.87rem; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; transition: color 0.15s, border-color 0.15s; font-weight: 510; }
+.plan-tabs a:hover:not([aria-disabled="true"]) { color: var(--text); }
+.plan-tabs a.active { color: var(--accent); border-bottom-color: var(--accent); }
+.plan-tabs a[aria-disabled="true"] { opacity: 0.5; cursor: default; }
+.plan-tabs .soon { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.12em 0.45em; border-radius: 10px; background: var(--code-bg); color: var(--muted); border: 1px solid var(--border); font-weight: 510; }
+
+.theme-toggle {
+  position: fixed; top: 1rem; right: 1.5rem; z-index: 10000;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.45rem 0.55rem; cursor: pointer; color: var(--text);
+  transition: background 0.2s, border-color 0.2s;
+  display: flex; align-items: center; justify-content: center; width: 36px; height: 36px;
+}
+.theme-toggle:hover { border-color: var(--accent); }
+.theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.theme-toggle svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.theme-toggle svg[data-theme-icon] { display: none; }
+.theme-toggle[data-theme-pref="system"] svg[data-theme-icon="system"],
+.theme-toggle[data-theme-pref="light"]  svg[data-theme-icon="light"],
+.theme-toggle[data-theme-pref="dark"]   svg[data-theme-icon="dark"] { display: block; }
+
+.side-nav {
+  position: fixed; top: 0; left: 0; width: 260px; height: 100vh;
+  background: var(--surface); border-right: 1px solid var(--border);
+  overflow-y: auto; z-index: 998; padding: 0;
+  display: flex; flex-direction: column;
+}
+.section-nav { padding: 4rem 0 0.6rem; overflow-y: auto; flex: 1; }
+.section-nav .group-label {
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--muted); padding: 0.3rem 1rem 0.3rem;
+}
+.section-nav a {
+  display: block; padding: 0.3rem 1rem; font-size: 0.8rem; color: var(--muted);
+  text-decoration: none; border-left: 3px solid transparent;
+}
+.section-nav a:hover { color: var(--text); background: var(--bg); }
+.section-nav a.active { color: var(--accent); border-left-color: var(--accent); background: var(--bg); font-weight: 510; }
+.section-nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.container { max-width: 1060px; margin: 0 auto; padding: 1rem 2.5rem 5rem; }
+
+code { background: var(--code-bg); padding: 0.12em 0.4em; border-radius: 4px; font-size: 0.88em; color: var(--yellow); }
+pre {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.9rem 1rem; overflow-x: auto; margin: 0.8rem 0; font-size: 0.82rem;
+  line-height: 1.55; color: var(--text);
+}
+pre code { background: transparent; padding: 0; color: inherit; font-size: inherit; }
+
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+thead th {
+  background: var(--surface); color: var(--accent);
+  text-align: left; padding: 0.55rem 0.8rem; border: 1px solid var(--border); font-weight: 600;
+}
+td { padding: 0.5rem 0.8rem; border: 1px solid var(--border); vertical-align: top; }
+tbody tr:nth-child(even) { background: var(--even-row-bg); }
+
+.badge { display: inline-block; padding: 0.13em 0.55em; border-radius: 12px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+.badge-green { background: var(--badge-green-bg); color: var(--green); border: 1px solid var(--green); }
+.badge-yellow { background: var(--badge-yellow-bg); color: var(--yellow); border: 1px solid var(--yellow); }
+.badge-red { background: var(--badge-red-bg); color: var(--red); border: 1px solid var(--red); }
+.badge-blue { background: var(--badge-blue-bg); color: var(--accent); border: 1px solid var(--accent); }
+.badge-purple { background: var(--badge-purple-bg); color: var(--purple); border: 1px solid var(--purple); }
+.badge-orange { background: var(--badge-orange-bg); color: var(--orange); border: 1px solid var(--orange); }
+.badge-gray { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+
+.callout { border-left: 4px solid var(--accent); background: var(--surface); padding: 1rem 1.2rem; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+.callout-warn { border-left-color: var(--yellow); }
+.callout-important { border-left-color: var(--red); }
+.callout-decision { border-left-color: var(--purple); }
+.callout-title { font-weight: 700; margin-bottom: 0.3rem; color: var(--text); display: flex; align-items: center; gap: 0.5rem; }
+
+.diagram { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin: 1.2rem 0; text-align: center; }
+.diagram svg { display: block; margin: 0 auto; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); max-width: 100%; height: auto; }
+.diagram .caption { margin-top: 0.6rem; color: var(--muted); font-size: 0.85rem; font-style: italic; }
+
+/* Phase card -- matches the generateImplementationPlan look in base.js */
+.phase { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin: 0.9rem 0; overflow: hidden; }
+.phase > summary { list-style: none; cursor: pointer; padding: 0.9rem 1rem; display: flex; gap: 0.9rem; align-items: flex-start; user-select: none; }
+.phase > summary::-webkit-details-marker { display: none; }
+.phase > summary:hover { background: var(--bg); }
+.phase > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.phase-num {
+  background: var(--accent); color: var(--bg); width: 34px; height: 34px;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; flex-shrink: 0;
+}
+.phase-num.shipped { background: var(--green); }
+.phase-num.inflight { background: var(--yellow); }
+.phase-body { flex: 1; min-width: 0; }
+.phase-title { font-weight: 700; font-size: 1.02rem; margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
+.phase-outcome { font-size: 0.9rem; color: var(--muted); margin-top: 0.1rem; }
+.phase-expand { color: var(--accent); font-size: 0.85rem; flex-shrink: 0; align-self: center; margin-right: 0.2rem; transition: transform 0.15s; }
+.phase[open] .phase-expand { transform: rotate(90deg); }
+.phase-detail { padding: 0 1.2rem 1rem 3.1rem; }
+.phase-detail h4 { margin-top: 1.1rem; color: var(--green); font-size: 0.95rem; }
+
+.status-pill { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.13em 0.5em; border-radius: 10px; border: 1px solid; font-weight: 600; }
+.status-shipped { color: var(--green); background: var(--badge-green-bg); border-color: var(--green); }
+.status-inflight { color: var(--yellow); background: var(--badge-yellow-bg); border-color: var(--yellow); }
+.status-pending { color: var(--muted); background: var(--surface); border-color: var(--border); }
+
+.mockup-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin: 1rem 0; }
+.mockup-pair .mockup { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem; text-align: center; }
+.mockup-pair .mockup svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+.mockup-pair .caption { margin-top: 0.45rem; font-size: 0.78rem; color: var(--muted); font-style: italic; }
+@media (max-width: 720px) { .mockup-pair { grid-template-columns: 1fr; } }
+
+.filechange table { font-size: 0.86rem; }
+.filechange td code { font-size: 0.82em; }
+
+.checklist { padding-left: 0; list-style: none; }
+.checklist li { padding: 0.25rem 0; font-size: 0.92rem; color: var(--text); }
+.checklist li::before { content: '\2610'; margin-right: 0.55em; color: var(--muted); font-family: var(--font-mono); }
+
+.smoke { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem 0.9rem; margin: 0.5rem 0; font-size: 0.82rem; }
+.smoke-title { font-weight: 600; color: var(--accent); margin-bottom: 0.3rem; font-size: 0.85rem; }
+
+kbd { display: inline-block; padding: 0.1em 0.45em; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; background: var(--code-bg); color: var(--text); font-size: 0.8rem; }
+
+@media (max-width: 768px) {
+  body { padding-left: 0; }
+  .side-nav { position: static; width: 100%; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  .section-nav { display: none; }
+  .container { padding: 1.2rem 1.2rem 3rem; }
+}
+
+@media print {
+  body { padding-left: 0; padding-top: 0; background: #fff; color: #000; }
+  .side-nav, .theme-toggle { display: none !important; }
+  .container { max-width: 100%; padding: 0; }
+  .phase { background: #fff; border-color: #ccc; break-inside: avoid; }
+  .phase[open] { display: block; }
+  .phase > .phase-detail { display: block !important; }
+  h1, h2, h3, h4 { color: #000; }
+  h2 { border-bottom: 1px solid #666; }
+  h1 { border-bottom: 2px solid #000; }
+  .badge, .status-pill { border: 1px solid #999; color: #000 !important; background: #eee !important; }
+  pre, code { background: #f4f4f4 !important; color: #000 !important; border-color: #ccc !important; }
+  .callout, .diagram, .smoke { border-color: #ccc; background: #fff; break-inside: avoid; }
+  .diagram svg { border-color: #999; background: #fff; }
+  table, tr, td, th { page-break-inside: avoid; }
+  thead th { background: #eee !important; color: #000 !important; }
+  a { color: #000; text-decoration: underline; }
+}
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle" type="button" aria-label="Theme (click to cycle: system, light, dark)" title="Theme -- click to cycle">
+  <svg data-theme-icon="system" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  <svg data-theme-icon="light" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  <svg data-theme-icon="dark" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+</button>
+
+<nav class="side-nav" aria-label="Plan navigation">
+  <div class="section-nav" aria-label="Sections">
+    <div class="group-label">On this page</div>
+    <a href="#status-snapshot">1. Status Snapshot</a>
+    <a href="#phase-list">2. Phase List</a>
+    <a href="#dep-graph">3. Dependency Graph</a>
+    <a href="#cutover">4. Cut-over Checklist</a>
+    <a href="#rollback">5. Rollback Plan</a>
+    <a href="#smoke-tests">6. Smoke-Test Recipes</a>
+    <a href="#followup-risks">7. Follow-up Risks</a>
+  </div>
+</nav>
+
+<main class="container">
+<nav class="plan-tabs" aria-label="Plan documents">
+  <a href="design.html">Design</a>
+  <a href="test-plan.html">Test Plan</a>
+  <a href="state-machine.html">State Machine</a>
+  <a href="test-cases.html" aria-disabled="true">Test Cases <span class="soon">soon</span></a>
+  <a href="implementation-plan.html" class="active" aria-current="page">Implementation</a>
+</nav>
+
+<h1>Implementation Plan: built-in-comment-ui</h1>
+<p class="meta">
+  Scenario: <code>built-in-comment-ui</code> &middot; Plugin: <code>plan-harness</code> &middot;
+  <span class="badge badge-blue">collaboration</span>
+  <span class="badge badge-purple">review</span>
+  <span class="badge badge-green">phased</span>
+</p>
+
+<!-- ============ 1. STATUS SNAPSHOT ============ -->
+<h2 id="status-snapshot">1. Status Snapshot</h2>
+
+<div class="callout callout-decision" role="note">
+  <div class="callout-title"><span class="badge badge-green">On track</span> 3 of 11 phases shipped; 8 open</div>
+  <p>Stable section IDs, the server-side comment CRUD / SSE / rate-limit stack, and the read-only sidebar panels (TODOs + Comments) are all in <code>main</code>. What remains is the browser write-path: selection detection, composer, thread rendering, orphan recovery, revise intent with its agent dispatcher and proposal modal, the re-anchor cascade MCP tool, and the hardening sweep.</p>
+  <p style="margin-top:0.5rem;"><strong>Current blocker:</strong> the user. Two open decisions from <a href="design.html#design-principles">design &sect;2</a> gate coding &mdash; <em>who can resolve a thread</em> (any-auth vs host-only) and the <em>fuzzy re-anchor algorithm</em> (Jaccard 0.72 vs Levenshtein 0.85). Phase 6 (threads) depends on the first; Phase 10 (re-anchor) depends on the second. No line of production code should ship until both are decided.</p>
+</div>
+
+<h3 id="shipped-so-far">Already shipped</h3>
+<table>
+  <thead><tr><th>Phase</th><th>Title</th><th>Commit</th><th>What it unlocked</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>P1</td>
+      <td>Stable section IDs + plan meta injection</td>
+      <td><code>b166e02</code></td>
+      <td><code>computeSectionId</code>, <code>injectSectionIds</code>, <code>injectPlanMeta</code> in <code>base.js</code>. Every <code>&lt;h2&gt;/&lt;h3&gt;/&lt;h4&gt;</code> now carries <code>id="sec-&lt;16hex&gt;"</code> deterministic from heading path; <code>window.__PLAN_HARNESS_META__</code> exposes scenario, doc, role, reviewer to the widget. <strong>Prereq for every anchor operation downstream.</strong></td>
+    </tr>
+    <tr>
+      <td>P2 (server)</td>
+      <td>comment-manager.js + 5 HTTP routes + SSE + rate-limit</td>
+      <td><code>b279748</code></td>
+      <td><code>listComments</code> / <code>appendComment</code> / <code>patchComment</code> / <code>deleteComment</code>, JSONL event collapse, token-bucket limiter, SSE registry, all six routes wired in <code>web-server.js</code>. Revise <code>intent</code> validated but dispatcher not yet built. <strong>Makes the write path callable via <code>curl</code>.</strong></td>
+    </tr>
+    <tr>
+      <td>P3 (read-only sidebar)</td>
+      <td>TODOs + Comments sidebar panels</td>
+      <td><code>50f070a</code>, <code>9eab8c0</code></td>
+      <td><code>injectSidebarPanels</code> scans the served HTML for <code>TODO:</code>/<code>FIXME:</code>, <code>[ ]</code>/<code>[x]</code> list items, and <code>class="todo"</code> elements; empty panels are fully hidden. The Comments panel hits <code>/api/comments/:scenario/:doc</code> and renders clickable items that scroll the anchor into view. Read-only &mdash; no composer yet.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="still-open">Still open</h3>
+<p>Phases 4 through 11 below. Client write path (detector, composer, thread cards, highlights, orphans), author workflow (revise two-button row, dispatcher, proposal modal, <code>/plan-revise</code> skill), server-internal (re-anchor cascade), hardening.</p>
+
+<p class="todo"><strong>TODO:</strong> resolve the two open decisions in <a href="design.html#design-principles">design &sect;2</a> before Phase 6 and Phase 10 begin.</p>
+
+<!-- ============ 2. PHASE LIST ============ -->
+<h2 id="phase-list">2. Phase List</h2>
+<p>Phases are listed in shipping order. Click any row to expand file-level changes, before/after mockups, acceptance gate, and dependency notes. Every checklist item below is picked up by the <em>TODOs</em> sidebar panel, so completing one here ticks the cut-over list in &sect;4 automatically.</p>
+
+<!-- ============ PHASE 1 ============ -->
+<details class="phase" id="phase-1">
+  <summary>
+    <div class="phase-num shipped">1</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        Stable Section IDs &amp; Plan Meta
+        <span class="badge badge-green">Low</span>
+        <span class="status-pill status-shipped">Shipped</span>
+        <span class="badge badge-gray">b166e02</span>
+      </div>
+      <div class="phase-outcome">Every <code>&lt;h2&gt;/&lt;h3&gt;/&lt;h4&gt;</code> carries a deterministic <code>sec-&lt;16hex&gt;</code> id. The widget can read <code>window.__PLAN_HARNESS_META__</code> at load.</div>
+    </div>
+    <span class="phase-expand">&#9654;</span>
+  </summary>
+  <div class="phase-detail">
+    <p>Already landed. Notes for historical reference only.</p>
+    <h4>File changes</h4>
+    <div class="filechange">
+    <table>
+      <thead><tr><th>File</th><th>Change</th><th>What changed</th><th>How it was proven</th></tr></thead>
+      <tbody>
+        <tr><td><code>plan-harness/local-proxy/src/templates/base.js</code></td><td><span class="badge badge-yellow">modified</span></td><td>Added <code>computeSectionId</code>, <code>normalizeSectionTitle</code>, <code>injectSectionIds</code>, <code>injectPlanMeta</code>; wired into <code>/view</code>-time post-processor.</td><td>Two consecutive runs produce byte-identical heading ids; unit test locked in.</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <h4>Acceptance gate (met)</h4>
+    <p><strong>AC-1</strong> &mdash; anchor correctness relies on the <code>[data-section-id]</code> that this phase emits. Verified by opening any plan doc, running <code>document.querySelector('h2').dataset.sectionId</code>, confirming the hash, reloading, and confirming it did not change.</p>
+    <h4>Dependencies</h4>
+    <p>None.</p>
+  </div>
+</details>
+
+<!-- ============ PHASE 2 ============ -->
+<details class="phase" id="phase-2">
+  <summary>
+    <div class="phase-num shipped">2</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        Server: comment-manager + routes + SSE + rate-limit
+        <span class="badge badge-yellow">Medium</span>
+        <span class="status-pill status-shipped">Shipped</span>
+        <span class="badge badge-gray">b279748</span>
+      </div>
+      <div class="phase-outcome">Any authenticated session can create, list, edit, resolve, delete, and stream comments over HTTPS. Path-safety and rate-limit enforced.</div>
+    </div>
+    <span class="phase-expand">&#9654;</span>
+  </summary>
+  <div class="phase-detail">
+    <p>Already landed. Write path is callable end-to-end from <code>curl</code>; no UI yet.</p>
+    <h4>File changes</h4>
+    <div class="filechange">
+    <table>
+      <thead><tr><th>File</th><th>Change</th><th>What changed</th><th>How it was proven</th></tr></thead>
+      <tbody>
+        <tr><td><code>src/comment-manager.js</code></td><td><span class="badge badge-green">new</span></td><td>JSONL read/append/patch/delete, event collapse, <code>checkRate</code> token bucket, SSE registry (<code>registerSseClient</code>, <code>broadcastCommentEvent</code>, <code>sseHeartbeat</code>), <code>CommentError</code>.</td><td>Manual curl POST/PATCH/DELETE; audit lines show on stderr.</td></tr>
+        <tr><td><code>src/web-server.js</code></td><td><span class="badge badge-yellow">modified</span></td><td>5 comment routes + 1 SSE stream route behind <code>verifyCookie</code>; path regex <code>^[a-zA-Z0-9_-]+$</code>.</td><td>All routes return expected status codes for happy + traversal inputs.</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <h4>Acceptance gate (met)</h4>
+    <p><strong>AC-2</strong> (attribution stamped server-side), <strong>AC-5</strong> (path traversal rejected at regex gate), <strong>AC-7</strong> (rate limit returns 429 with <code>Retry-After</code>), <strong>AC-15</strong> (disk-full surfaces as 507) are all already green in curl-only terms. UI-observable versions flip in later phases.</p>
+    <h4>Dependencies</h4>
+    <p>Phase 1 for <code>sectionId</code> validation on the anchor payload.</p>
+  </div>
+</details>
+
+<!-- ============ PHASE 3 ============ -->
+<details class="phase" id="phase-3">
+  <summary>
+    <div class="phase-num shipped">3</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        Read-only Sidebar Panels (TODOs + Comments)
+        <span class="badge badge-green">Low</span>
+        <span class="status-pill status-shipped">Shipped</span>
+        <span class="badge badge-gray">50f070a / 9eab8c0</span>
+      </div>
+      <div class="phase-outcome">Every served plan doc shows a left-rail list of unresolved comments and TODOs with click-to-scroll. No write controls yet.</div>
+    </div>
+    <span class="phase-expand">&#9654;</span>
+  </summary>
+  <div class="phase-detail">
+    <p>Already landed. The Comments panel is the read-only half of the widget &mdash; Phase 6 adds threading, resolve, delete, inline highlights.</p>
+    <h4>File changes</h4>
+    <div class="filechange">
+    <table>
+      <thead><tr><th>File</th><th>Change</th><th>What changed</th><th>How it was proven</th></tr></thead>
+      <tbody>
+        <tr><td><code>src/templates/base.js</code></td><td><span class="badge badge-yellow">modified</span></td><td><code>injectSidebarPanels</code>: DOM scan for three TODO patterns; fetches <code>/api/comments/:scenario/:doc</code>; empty panels hidden.</td><td>Load any doc with TODOs and one comment; both panels render with correct counts; clicking scrolls + flashes the target.</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <h4>Acceptance gate (partial)</h4>
+    <p>Locks in the TODO format contract from <a href="design.html#todo-format-contract">design &sect;6</a>. Full <strong>AC-9</strong> (orphan UX) still blocked on Phase 7.</p>
+    <h4>Dependencies</h4>
+    <p>Phase 1 (section ids), Phase 2 (the GET route the Comments panel calls).</p>
+  </div>
+</details>
+
+<!-- ============ PHASE 4 -- FIRST OPEN PHASE ============ -->
+<details class="phase" id="phase-4" open>
+  <summary>
+    <div class="phase-num">4</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        SelectionDetector + Floating Comment Button
+        <span class="badge badge-yellow">Medium</span>
+        <span class="status-pill status-pending">Pending</span>
+      </div>
+      <div class="phase-outcome">Reviewer drags to select &ge; 3 chars inside a section; within 150&nbsp;ms a floating <em>Comment</em> button appears at the selection end. <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd> works from keyboard.</div>
+    </div>
+    <span class="phase-expand">&#9654;</span>
+  </summary>
+  <div class="phase-detail">
+    <div class="mockup-pair">
+      <div class="mockup">
+        <svg width="360" height="200" viewBox="0 0 360 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="p4-before-t p4-before-d" preserveAspectRatio="xMidYMid meet">
+          <title id="p4-before-t">Before phase 4 mockup</title>
+          <desc id="p4-before-d">Plan doc viewed in reader mode with a text selection but no call to action anywhere; the reviewer has no way to leave a comment.</desc>
+          <rect x="0" y="0" width="360" height="200" fill="var(--surface)"/>
+          <rect x="20" y="18" width="320" height="14" rx="3" fill="var(--border)"/>
+          <rect x="20" y="48" width="180" height="10" rx="2" fill="var(--muted)" opacity="0.6"/>
+          <rect x="20" y="68" width="260" height="10" rx="2" fill="var(--muted)" opacity="0.6"/>
+          <rect x="20" y="88" width="220" height="10" rx="2" fill="var(--muted)" opacity="0.6"/>
+          <rect x="50" y="112" width="170" height="14" fill="#7fbfff" opacity="0.5"/>
+          <rect x="20" y="132" width="300" height="10" rx="2" fill="var(--muted)" opacity="0.6"/>
+          <rect x="20" y="152" width="240" height="10" rx="2" fill="var(--muted)" opacity="0.6"/>
+          <text x="180" y="192" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="11" font-style="italic">selection made, nothing happens</text>
+        </svg>
+        <div class="caption">Before phase 4 &mdash; selection sits orphaned with no affordance.</div>
+      </div>
+      <div class="mockup">
+        <svg width="360" height="200" viewBox="0 0 360 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="p4-after-t p4-after-d" preserveAspectRatio="xMidYMid meet">
+          <title id="p4-after-t">After phase 4 mockup</title>
+          <desc id="p4-after-d">Same selection with a small floating Comment pill anchored to the selection's trailing edge, carrying a speech-bubble icon and the label Comment.</desc>
+          <rect x="0" y="0" width="360" height="200" fill="var(--surface)"/>
+          <rect x="20" y="18" width="320" height="14" rx="3" fill="var(--border)"/>
+          <rect x="20" y="48" width="180" height="10" rx="2" fill="var(--muted)" opacity="0.6"/>
+          <rect x="20" y="68" width="260" height="10" rx="2" fill="var(--muted)" opacity="0.6"/>
+          <rect x="20" y="88" width="220" height="10" rx="2" fill="var(--muted)" opacity="0.6"/>
+          <rect x="50" y="112" width="170" height="14" fill="#7fbfff" opacity="0.5"/>
+          <rect x="20" y="132" width="300" height="10" rx="2" fill="var(--muted)" opacity="0.6"/>
+          <rect x="20" y="152" width="240" height="10" rx="2" fill="var(--muted)" opacity="0.6"/>
+          <rect x="220" y="106" width="88" height="26" rx="13" fill="var(--accent)"/>
+          <circle cx="232" cy="119" r="5" fill="var(--bg)" stroke="var(--bg)" stroke-width="1"/>
+          <path d="M228 117 h4 M228 120 h4" stroke="var(--accent)" stroke-width="1"/>
+          <text x="272" y="123" text-anchor="middle" fill="var(--bg)" font-family="sans-serif" font-size="11" font-weight="600">Comment</text>
+          <text x="180" y="192" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="11" font-style="italic">floating button within 150 ms of mouseup</text>
+        </svg>
+        <div class="caption">After phase 4 &mdash; floating pill anchors to selection end; click or <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd>.</div>
+      </div>
+    </div>
+
+    <h4>File changes</h4>
+    <div class="filechange">
+    <table>
+      <thead><tr><th>File</th><th>Change</th><th>What changes</th><th>Test that will prove it</th></tr></thead>
+      <tbody>
+        <tr><td><code>src/templates/base.js</code></td><td><span class="badge badge-yellow">modified</span></td><td>New <code>injectCommentWidget(html, meta)</code> stage in the <code>/view</code> pipeline. Emits inline CSS for the floating pill plus a <code>SelectionDetector</code> IIFE. Detector listens to <code>mouseup</code> + <code>selectionchange</code>, debounces by 60&nbsp;ms, walks the anchor <code>commonAncestorContainer</code> for the nearest <code>[data-section-id]</code>, and builds <code>{ sectionId, exact, prefix, suffix }</code>. Positions the button via <code>getBoundingClientRect()</code> of the selection's last <code>Range</code>.</td><td>Load any served plan doc; select &ge; 3 chars inside an <code>&lt;h2&gt;</code> body; assert the pill renders within 150&nbsp;ms and its <code>data-anchor</code> round-trips through <code>JSON.parse</code>.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>Acceptance gate</h4>
+    <p><strong>AC-1</strong> (anchor correctness) flips to green &mdash; the Anchor object the server stores now comes from a real DOM selection, not a curl fixture.</p>
+
+    <h4>Dependencies</h4>
+    <p>Phase 1 (section ids must exist to walk to). Phase 3 may register a ready-state race &mdash; detector must wait until <code>DOMContentLoaded</code> because sidebar injection mutates the main content.</p>
+  </div>
+</details>
+
+<!-- ============ PHASE 5 ============ -->
+<details class="phase" id="phase-5">
+  <summary>
+    <div class="phase-num">5</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        Composer Side Panel + Submit Flow
+        <span class="badge badge-red">High</span>
+        <span class="status-pill status-pending">Pending</span>
+      </div>
+      <div class="phase-outcome">Clicking the floating button (or <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd>) opens a 380&nbsp;px right-side panel, focus lands in the textarea, <kbd>Ctrl</kbd>+<kbd>Enter</kbd> POSTs, draft auto-saves to <code>localStorage</code>.</div>
+    </div>
+    <span class="phase-expand">&#9654;</span>
+  </summary>
+  <div class="phase-detail">
+    <div class="mockup-pair">
+      <div class="mockup">
+        <svg width="360" height="220" viewBox="0 0 360 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="p5-before-t p5-before-d" preserveAspectRatio="xMidYMid meet">
+          <title id="p5-before-t">Before phase 5 mockup</title>
+          <desc id="p5-before-d">The floating Comment pill is present but clicking it does nothing; no composer surface exists.</desc>
+          <rect x="0" y="0" width="360" height="220" fill="var(--surface)"/>
+          <rect x="20" y="48" width="260" height="10" rx="2" fill="var(--muted)" opacity="0.6"/>
+          <rect x="50" y="68" width="170" height="14" fill="#7fbfff" opacity="0.5"/>
+          <rect x="20" y="88" width="300" height="10" rx="2" fill="var(--muted)" opacity="0.6"/>
+          <rect x="220" y="64" width="88" height="26" rx="13" fill="var(--accent)"/>
+          <text x="262" y="81" text-anchor="middle" fill="var(--bg)" font-family="sans-serif" font-size="11" font-weight="600">Comment</text>
+          <text x="180" y="140" text-anchor="middle" fill="var(--red)" font-family="sans-serif" font-size="11">click &rarr; nothing happens (phase 4 only)</text>
+        </svg>
+        <div class="caption">Before phase 5 &mdash; pill visible, no surface behind the click.</div>
+      </div>
+      <div class="mockup">
+        <svg width="360" height="220" viewBox="0 0 360 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="p5-after-t p5-after-d" preserveAspectRatio="xMidYMid meet">
+          <title id="p5-after-t">After phase 5 mockup</title>
+          <desc id="p5-after-d">Right side of viewport shows a slide-over panel with the quoted selection in a blockquote, a multi-line textarea, an Ctrl+Enter Submit button, and an Esc Cancel button.</desc>
+          <rect x="0" y="0" width="360" height="220" fill="var(--surface)"/>
+          <rect x="20" y="48" width="170" height="10" rx="2" fill="var(--muted)" opacity="0.5"/>
+          <rect x="20" y="68" width="130" height="14" fill="#7fbfff" opacity="0.4"/>
+          <rect x="20" y="88" width="140" height="10" rx="2" fill="var(--muted)" opacity="0.5"/>
+          <rect x="200" y="20" width="150" height="185" rx="8" fill="var(--bg)" stroke="var(--accent)" stroke-width="1.5"/>
+          <text x="212" y="38" fill="var(--text)" font-family="sans-serif" font-size="11" font-weight="700">New comment</text>
+          <rect x="210" y="46" width="130" height="22" fill="var(--surface)" stroke="var(--border)"/>
+          <text x="215" y="61" fill="var(--muted)" font-family="sans-serif" font-size="9" font-style="italic">"server-side from req.user"</text>
+          <rect x="210" y="74" width="130" height="65" fill="var(--surface)" stroke="var(--accent)"/>
+          <text x="215" y="88" fill="var(--muted)" font-family="sans-serif" font-size="9">Should we clamp</text>
+          <text x="215" y="100" fill="var(--muted)" font-family="sans-serif" font-size="9">author length</text>
+          <text x="215" y="112" fill="var(--muted)" font-family="sans-serif" font-size="9">earlier?|</text>
+          <rect x="210" y="148" width="62" height="22" rx="3" fill="var(--accent)"/>
+          <text x="241" y="162" text-anchor="middle" fill="var(--bg)" font-family="sans-serif" font-size="9" font-weight="600">Submit</text>
+          <rect x="277" y="148" width="62" height="22" rx="3" fill="var(--surface)" stroke="var(--border)"/>
+          <text x="308" y="162" text-anchor="middle" fill="var(--text)" font-family="sans-serif" font-size="9">Cancel</text>
+          <text x="275" y="188" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="8">Ctrl+Enter submits, Esc closes</text>
+        </svg>
+        <div class="caption">After phase 5 &mdash; non-modal slide-over; selection quoted; keyboard-first.</div>
+      </div>
+    </div>
+
+    <h4>File changes</h4>
+    <div class="filechange">
+    <table>
+      <thead><tr><th>File</th><th>Change</th><th>What changes</th><th>Test that will prove it</th></tr></thead>
+      <tbody>
+        <tr><td><code>src/templates/base.js</code></td><td><span class="badge badge-yellow">modified</span></td><td>Add <code>ComposerPanel</code>: <code>role="dialog" aria-modal="false"</code>, right-fixed 380&nbsp;px, bottom-sheet &lt;720&nbsp;px, focus steal on open, focus return on close. Submit calls <code>ApiClient.post</code>; success closes panel + emits <code>ph:comment-created</code>. Draft persisted under <code>localStorage[plan-harness-draft:&lt;scenario&gt;:&lt;doc&gt;:&lt;anchorHash&gt;]</code>.</td><td>Open composer, type, hit <kbd>Ctrl</kbd>+<kbd>Enter</kbd>; JSONL line appended; then submit with offline &rarr; banner shows, draft restored after reload.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>Acceptance gate</h4>
+    <p><strong>AC-8</strong> (keyboard a11y composer path) flips green. <strong>UC-12</strong> offline-draft flow becomes exercisable.</p>
+
+    <h4>Dependencies</h4>
+    <p>Phase 4 (button event). Phase 2 (POST route).</p>
+  </div>
+</details>
+
+<!-- ============ PHASE 6 ============ -->
+<details class="phase" id="phase-6">
+  <summary>
+    <div class="phase-num">6</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        Thread Cards + Inline <code>&lt;mark&gt;</code> Highlights
+        <span class="badge badge-red">High</span>
+        <span class="status-pill status-pending">Pending</span>
+      </div>
+      <div class="phase-outcome">Selected text wraps in a <code>&lt;mark class="ph-hl"&gt;</code>; side panel now renders full threads with reply / resolve / delete controls; SSE pushes live updates to other tabs.</div>
+    </div>
+    <span class="phase-expand">&#9654;</span>
+  </summary>
+  <div class="phase-detail">
+    <div class="mockup-pair">
+      <div class="mockup">
+        <svg width="360" height="220" viewBox="0 0 360 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="p6-before-t p6-before-d" preserveAspectRatio="xMidYMid meet">
+          <title id="p6-before-t">Before phase 6 mockup</title>
+          <desc id="p6-before-d">Sidebar shows a bare comment list from phase 3; main content has no inline highlight linking the comment to the text.</desc>
+          <rect x="0" y="0" width="360" height="220" fill="var(--surface)"/>
+          <rect x="20" y="48" width="260" height="10" rx="2" fill="var(--muted)" opacity="0.6"/>
+          <rect x="20" y="68" width="300" height="10" rx="2" fill="var(--muted)" opacity="0.6"/>
+          <rect x="20" y="88" width="180" height="10" rx="2" fill="var(--muted)" opacity="0.6"/>
+          <rect x="240" y="16" width="110" height="190" rx="6" fill="var(--bg)" stroke="var(--border)"/>
+          <text x="250" y="32" fill="var(--text)" font-family="sans-serif" font-size="9" font-weight="600">Comments (2)</text>
+          <text x="250" y="54" fill="var(--muted)" font-family="sans-serif" font-size="9">alice: Should we&hellip;</text>
+          <text x="250" y="74" fill="var(--muted)" font-family="sans-serif" font-size="9">bob: Security?</text>
+          <text x="130" y="150" text-anchor="middle" fill="var(--red)" font-family="sans-serif" font-size="10">no inline link between text and card</text>
+        </svg>
+        <div class="caption">Before phase 6 &mdash; list only, no highlight, no reply.</div>
+      </div>
+      <div class="mockup">
+        <svg width="360" height="220" viewBox="0 0 360 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="p6-after-t p6-after-d" preserveAspectRatio="xMidYMid meet">
+          <title id="p6-after-t">After phase 6 mockup</title>
+          <desc id="p6-after-d">Same doc: one line is highlighted in yellow, and the sidebar card expands to show thread with alice, bob reply, Resolve / Delete buttons, and a reply composer inline.</desc>
+          <rect x="0" y="0" width="360" height="220" fill="var(--surface)"/>
+          <rect x="20" y="48" width="170" height="10" rx="2" fill="var(--muted)" opacity="0.5"/>
+          <rect x="20" y="68" width="170" height="14" fill="#ffd666" opacity="0.7"/>
+          <rect x="20" y="88" width="170" height="10" rx="2" fill="var(--muted)" opacity="0.5"/>
+          <rect x="205" y="16" width="145" height="195" rx="6" fill="var(--bg)" stroke="var(--accent)"/>
+          <text x="214" y="32" fill="var(--text)" font-family="sans-serif" font-size="9" font-weight="700">Thread</text>
+          <text x="214" y="48" fill="var(--text)" font-family="sans-serif" font-size="9"><tspan font-weight="600">alice</tspan> &middot; 2m</text>
+          <text x="214" y="62" fill="var(--muted)" font-family="sans-serif" font-size="9">Clamp author len?</text>
+          <rect x="214" y="72" width="128" height="1" fill="var(--border)"/>
+          <text x="222" y="88" fill="var(--text)" font-family="sans-serif" font-size="9"><tspan font-weight="600">bob</tspan> &middot; 1m</text>
+          <text x="222" y="102" fill="var(--muted)" font-family="sans-serif" font-size="9">Yes, 80 is plenty.</text>
+          <rect x="214" y="116" width="128" height="40" fill="var(--surface)" stroke="var(--border)"/>
+          <text x="220" y="132" fill="var(--muted)" font-family="sans-serif" font-size="9" font-style="italic">Reply&hellip;</text>
+          <rect x="214" y="162" width="58" height="20" rx="3" fill="var(--accent)"/>
+          <text x="243" y="175" text-anchor="middle" fill="var(--bg)" font-family="sans-serif" font-size="9" font-weight="600">Resolve</text>
+          <rect x="278" y="162" width="62" height="20" rx="3" fill="var(--surface)" stroke="var(--red)"/>
+          <text x="309" y="175" text-anchor="middle" fill="var(--red)" font-family="sans-serif" font-size="9">Delete</text>
+        </svg>
+        <div class="caption">After phase 6 &mdash; yellow inline highlight + full thread card with reply, resolve, delete.</div>
+      </div>
+    </div>
+
+    <h4>File changes</h4>
+    <div class="filechange">
+    <table>
+      <thead><tr><th>File</th><th>Change</th><th>What changes</th><th>Test that will prove it</th></tr></thead>
+      <tbody>
+        <tr><td><code>src/templates/base.js</code></td><td><span class="badge badge-yellow">modified</span></td><td>Add <code>HighlightWrap</code> (DOM walker that splits text nodes to wrap <code>anchor.prefix+exact+suffix</code> in a <code>&lt;mark class="ph-hl" data-cmt-id="..."&gt;</code>), <code>ThreadCard</code> component (reply textarea, Resolve / Delete buttons, resolved-fades styling), and <code>SseClient</code> (<code>EventSource</code> against <code>/api/comments/.../stream</code>, dispatches to a local reducer). Replace the read-only list from Phase 3 with the richer renderer but keep the empty-panel-hide rule.</td><td>Open doc in two tabs, post from tab A, assert thread appears in tab B within 1&nbsp;s; click Resolve, thread fades + badge increments; click Delete on own comment, body replaced with <em>[deleted]</em>.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>Acceptance gate</h4>
+    <p><strong>AC-4</strong> (resolve semantics) flips green &mdash; <em>pending the open decision in <a href="design.html#design-principles">design &sect;2</a></em>. <strong>AC-10</strong> (durable append under simultaneous posts) observable end-to-end.</p>
+
+    <h4>Dependencies</h4>
+    <p>Phase 5 (composer produces the data that renders here). Phase 2 (GET / PATCH / DELETE routes + SSE stream).</p>
+  </div>
+</details>
+
+<!-- ============ PHASE 7 ============ -->
+<details class="phase" id="phase-7">
+  <summary>
+    <div class="phase-num">7</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        Orphan Pinned Group + Reattach Flow
+        <span class="badge badge-green">Low</span>
+        <span class="status-pill status-pending">Pending</span>
+      </div>
+      <div class="phase-outcome">Comments marked <code>anchor.orphaned === true</code> float to a pinned <em>Needs reattachment (N)</em> block at the top of the side panel; reviewer can reattach to a new selection or archive.</div>
+    </div>
+    <span class="phase-expand">&#9654;</span>
+  </summary>
+  <div class="phase-detail">
+    <div class="mockup-pair">
+      <div class="mockup">
+        <svg width="360" height="200" viewBox="0 0 360 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="p7-before-t p7-before-d" preserveAspectRatio="xMidYMid meet">
+          <title id="p7-before-t">Before phase 7 mockup</title>
+          <desc id="p7-before-d">Sidebar lists all comments as a flat list; orphaned ones are indistinguishable from live ones.</desc>
+          <rect x="0" y="0" width="360" height="200" fill="var(--surface)"/>
+          <rect x="20" y="16" width="320" height="170" rx="6" fill="var(--bg)" stroke="var(--border)"/>
+          <text x="30" y="36" fill="var(--text)" font-family="sans-serif" font-size="11" font-weight="700">Comments (4)</text>
+          <text x="30" y="60" fill="var(--muted)" font-family="sans-serif" font-size="10">alice: clamp author len</text>
+          <text x="30" y="80" fill="var(--muted)" font-family="sans-serif" font-size="10">bob: security concern</text>
+          <text x="30" y="100" fill="var(--muted)" font-family="sans-serif" font-size="10">alice: missing null check</text>
+          <text x="30" y="120" fill="var(--muted)" font-family="sans-serif" font-size="10">dan: typo in API path</text>
+          <text x="180" y="160" text-anchor="middle" fill="var(--red)" font-family="sans-serif" font-size="10">which ones lost their anchor?</text>
+        </svg>
+        <div class="caption">Before phase 7 &mdash; orphans hidden among live comments.</div>
+      </div>
+      <div class="mockup">
+        <svg width="360" height="200" viewBox="0 0 360 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="p7-after-t p7-after-d" preserveAspectRatio="xMidYMid meet">
+          <title id="p7-after-t">After phase 7 mockup</title>
+          <desc id="p7-after-d">Top of sidebar shows an amber-bordered box titled Needs reattachment 1 with a blockquote of the orphan's exact text and Reattach / Archive buttons; live comments listed separately below.</desc>
+          <rect x="0" y="0" width="360" height="200" fill="var(--surface)"/>
+          <rect x="20" y="16" width="320" height="78" rx="6" fill="var(--badge-yellow-bg)" stroke="var(--yellow)" stroke-width="1.5"/>
+          <text x="30" y="34" fill="var(--yellow)" font-family="sans-serif" font-size="11" font-weight="700">Needs reattachment (1)</text>
+          <rect x="30" y="40" width="300" height="22" fill="var(--bg)" stroke="var(--border)"/>
+          <text x="36" y="55" fill="var(--muted)" font-family="sans-serif" font-size="9" font-style="italic">"server-side from req.user.name"</text>
+          <rect x="30" y="66" width="70" height="20" rx="3" fill="var(--yellow)"/>
+          <text x="65" y="79" text-anchor="middle" fill="var(--bg)" font-family="sans-serif" font-size="9" font-weight="600">Reattach</text>
+          <rect x="106" y="66" width="58" height="20" rx="3" fill="var(--surface)" stroke="var(--border)"/>
+          <text x="135" y="79" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="9">Archive</text>
+          <text x="180" y="118" fill="var(--text)" font-family="sans-serif" font-size="11" font-weight="700" text-anchor="middle">Comments (3)</text>
+          <text x="30" y="140" fill="var(--muted)" font-family="sans-serif" font-size="10">alice: clamp author len</text>
+          <text x="30" y="158" fill="var(--muted)" font-family="sans-serif" font-size="10">bob: security concern</text>
+          <text x="30" y="176" fill="var(--muted)" font-family="sans-serif" font-size="10">dan: typo in API path</text>
+        </svg>
+        <div class="caption">After phase 7 &mdash; orphans pinned with amber accent; reattach + archive primary actions.</div>
+      </div>
+    </div>
+
+    <h4>File changes</h4>
+    <div class="filechange">
+    <table>
+      <thead><tr><th>File</th><th>Change</th><th>What changes</th><th>Test that will prove it</th></tr></thead>
+      <tbody>
+        <tr><td><code>src/templates/base.js</code></td><td><span class="badge badge-yellow">modified</span></td><td>Add <code>OrphanGroup</code> renderer at the top of <code>ComposerPanel</code>. On <em>Reattach</em>, the widget enters <em>reattach-mode</em>: next <code>mouseup</code> selection is packaged into an Anchor and PATCHed to the orphan comment with <code>{ anchor: newAnchor }</code>. On <em>Archive</em>, PATCH with <code>{ resolved: true, archived: true }</code> (same route as resolve; <code>archived</code> is a display-only flag the client derives from an orphaned + resolved state).</td><td>Force an orphan by editing a doc's source so the exact text no longer matches, reload, assert the amber block renders; drag-select new text, click Reattach, new anchor appended and highlight reappears inline.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>Acceptance gate</h4>
+    <p><strong>AC-9</strong> (orphan UX) flips green.</p>
+
+    <h4>Dependencies</h4>
+    <p>Phase 6 (thread card rendering). Phase 10 (re-anchor cascade) is what <em>creates</em> the orphan events in the first place &mdash; this phase can ship without 10, but the group will only display orphans that existed when a reviewer edited raw HTML; Phase 10 is what exercises the group under real regen.</p>
+  </div>
+</details>
+
+<!-- ============ PHASE 8 ============ -->
+<details class="phase" id="phase-8">
+  <summary>
+    <div class="phase-num">8</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        Revise Two-Button Composer + Dispatcher + <code>/plan-revise</code> skill
+        <span class="badge badge-red">High</span>
+        <span class="status-pill status-pending">Pending</span>
+      </div>
+      <div class="phase-outcome">Host sees <em>Reply</em> + <em>Request update</em> in the composer. <em>Request update</em> posts <code>intent: "revise"</code>; under <code>reviseMode: "active"</code> the server enqueues a writer subagent job; under <code>"passive"</code> it waits for <code>/plan-revise</code>. Dispatcher writes the proposal diff.</div>
+    </div>
+    <span class="phase-expand">&#9654;</span>
+  </summary>
+  <div class="phase-detail">
+    <div class="mockup-pair">
+      <div class="mockup">
+        <svg width="360" height="220" viewBox="0 0 360 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="p8-before-t p8-before-d" preserveAspectRatio="xMidYMid meet">
+          <title id="p8-before-t">Before phase 8 mockup</title>
+          <desc id="p8-before-d">Composer from phase 5 with a single Submit button; the host sees exactly what a reviewer sees.</desc>
+          <rect x="0" y="0" width="360" height="220" fill="var(--surface)"/>
+          <rect x="20" y="20" width="320" height="185" rx="8" fill="var(--bg)" stroke="var(--accent)"/>
+          <text x="32" y="40" fill="var(--text)" font-family="sans-serif" font-size="11" font-weight="700">New comment</text>
+          <rect x="32" y="48" width="296" height="22" fill="var(--surface)" stroke="var(--border)"/>
+          <text x="36" y="63" fill="var(--muted)" font-family="sans-serif" font-size="9" font-style="italic">"Data model section conflates&hellip;"</text>
+          <rect x="32" y="76" width="296" height="85" fill="var(--surface)" stroke="var(--accent)"/>
+          <text x="36" y="92" fill="var(--text)" font-family="sans-serif" font-size="10">Please split anchor and section id.|</text>
+          <rect x="32" y="172" width="90" height="26" rx="4" fill="var(--accent)"/>
+          <text x="77" y="188" text-anchor="middle" fill="var(--bg)" font-family="sans-serif" font-size="10" font-weight="600">Submit</text>
+          <text x="180" y="188" fill="var(--red)" font-family="sans-serif" font-size="10">no author-only action</text>
+        </svg>
+        <div class="caption">Before phase 8 &mdash; no distinction between reviewer and host; host cannot direct an edit.</div>
+      </div>
+      <div class="mockup">
+        <svg width="360" height="220" viewBox="0 0 360 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="p8-after-t p8-after-d" preserveAspectRatio="xMidYMid meet">
+          <title id="p8-after-t">After phase 8 mockup</title>
+          <desc id="p8-after-d">Same composer, now with two buttons in the submit row: solid-filled Reply and an outlined Request update with a circular-arrow icon; below a tooltip reads Will dispatch on next /plan-revise.</desc>
+          <rect x="0" y="0" width="360" height="220" fill="var(--surface)"/>
+          <rect x="20" y="20" width="320" height="195" rx="8" fill="var(--bg)" stroke="var(--accent)"/>
+          <text x="32" y="40" fill="var(--text)" font-family="sans-serif" font-size="11" font-weight="700">New comment</text>
+          <rect x="32" y="48" width="296" height="22" fill="var(--surface)" stroke="var(--border)"/>
+          <text x="36" y="63" fill="var(--muted)" font-family="sans-serif" font-size="9" font-style="italic">"Data model section conflates&hellip;"</text>
+          <rect x="32" y="76" width="296" height="85" fill="var(--surface)" stroke="var(--accent)"/>
+          <text x="36" y="92" fill="var(--text)" font-family="sans-serif" font-size="10">Please split anchor and section id.|</text>
+          <rect x="32" y="172" width="88" height="26" rx="4" fill="var(--accent)"/>
+          <text x="76" y="188" text-anchor="middle" fill="var(--bg)" font-family="sans-serif" font-size="10" font-weight="600">Reply</text>
+          <rect x="128" y="172" width="200" height="26" rx="4" fill="var(--surface)" stroke="var(--accent)"/>
+          <circle cx="142" cy="185" r="5" fill="none" stroke="var(--accent)" stroke-width="1.2"/>
+          <path d="M140 183 l2 2 l2 -2" stroke="var(--accent)" stroke-width="1.2" fill="none"/>
+          <text x="228" y="188" text-anchor="middle" fill="var(--accent)" font-family="sans-serif" font-size="10" font-weight="600">Request update (Ctrl+Shift+Enter)</text>
+          <text x="180" y="212" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="8">tooltip: will dispatch on next /plan-revise</text>
+        </svg>
+        <div class="caption">After phase 8 &mdash; host-only second button, mode-aware tooltip, keyboard-shortcut labelled.</div>
+      </div>
+    </div>
+
+    <h4>File changes</h4>
+    <div class="filechange">
+    <table>
+      <thead><tr><th>File</th><th>Change</th><th>What changes</th><th>Test that will prove it</th></tr></thead>
+      <tbody>
+        <tr><td><code>src/templates/base.js</code></td><td><span class="badge badge-yellow">modified</span></td><td>When <code>meta.role === "host"</code>, render the second button row; <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> posts with <code>intent: "revise"</code>. Read cached <code>/api/config</code> to pick tooltip copy.</td><td>Loopback session sees two buttons; reviewer session sees one. Posting from reviewer with client-forged <code>intent: "revise"</code> returns 403.</td></tr>
+        <tr><td><code>src/revise-dispatcher.js</code></td><td><span class="badge badge-green">new</span></td><td>Reads <code>.comment-config.json</code> (<code>reviseMode</code>, hot-reload on mtime). <code>dispatch(scenario, doc, id)</code>: invokes the writer subagent via the MCP subagent API with <code>{ anchor, exact, body, scenarioContext }</code>; on completion, writes unified diff to <code>.comments/&lt;doc&gt;.proposals/&lt;cmtId&gt;.diff</code> and appends <code>reviseStatus: "proposed"</code>. Enforces 3 concurrent per scenario.</td><td>Unit test: pending &rarr; dispatched &rarr; proposed transitions appear in JSONL. Integration: <code>curl revise-dispatch</code>, observe diff file + stderr audit.</td></tr>
+        <tr><td><code>src/web-server.js</code></td><td><span class="badge badge-yellow">modified</span></td><td>Add routes <code>POST /api/comments/:s/:d/:id/revise-dispatch</code> and <code>GET /api/config</code> (returns <code>{ reviseMode }</code>). Host-role check on every revise-* route.</td><td>curl loopback revise-dispatch &rarr; 202; curl reviewer revise-dispatch &rarr; 403.</td></tr>
+        <tr><td><code>src/index.js</code></td><td><span class="badge badge-yellow">modified</span></td><td>Register MCP tool <code>plan_revise</code> that enumerates <code>reviseStatus === "pending"</code> comments across a scenario and calls <code>revise-dispatch</code> in sequence.</td><td><code>plan_revise built-in-comment-ui</code> from Claude Code dispatches all pending revises.</td></tr>
+        <tr><td><code>skills/plan-revise/SKILL.md</code></td><td><span class="badge badge-green">new</span></td><td>Slash command that invokes <code>plan_revise</code> MCP tool + surfaces the queue to the author before batch-dispatch.</td><td><code>/plan-revise built-in-comment-ui</code> in Claude Code batches pending revises.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="callout callout-decision">
+      <div class="callout-title"><span class="badge badge-purple">Subagent contract</span> writer-prompt input shape</div>
+<pre><code>{
+  "scenarioName": "built-in-comment-ui",
+  "doc":          "design.html",
+  "anchor":       { "sectionId": "sec-...", "exact": "...", "prefix": "...", "suffix": "..." },
+  "intentBody":   "please split anchor and section id",
+  "docSnapshot":  "&lt;full current HTML&gt;",
+  "outputSpec":   "unified-diff against docSnapshot; only touch the enclosing section"
+}</code></pre>
+      <p>The writer subagent returns a single unified diff limited to the anchor's enclosing <code>[data-section-id]</code> subtree. Dispatcher writes it to <code>.comments/&lt;doc&gt;.proposals/&lt;cmtId&gt;.diff</code> verbatim; apply happens only on Accept (Phase 9).</p>
+    </div>
+
+    <h4>Acceptance gate</h4>
+    <p><strong>UC-13</strong> (passive revise) end-to-end reachable up to <em>proposed</em>. <strong>UC-14</strong> (active revise) reachable if <code>reviseMode: "active"</code>.</p>
+
+    <h4>Dependencies</h4>
+    <p>Phase 5 (composer), Phase 6 (thread card to render the <em>Pending dispatch</em> chip).</p>
+  </div>
+</details>
+
+<!-- ============ PHASE 9 ============ -->
+<details class="phase" id="phase-9">
+  <summary>
+    <div class="phase-num">9</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        Proposal Review Modal (diff viewer + accept/reject)
+        <span class="badge badge-yellow">Medium</span>
+        <span class="status-pill status-pending">Pending</span>
+      </div>
+      <div class="phase-outcome">When a revise flips to <em>proposed</em>, the thread card shows a <em>Proposal ready</em> chip; clicking it opens a modal with a minimal unified-diff viewer and Accept / Reject buttons.</div>
+    </div>
+    <span class="phase-expand">&#9654;</span>
+  </summary>
+  <div class="phase-detail">
+    <div class="mockup-pair">
+      <div class="mockup">
+        <svg width="360" height="220" viewBox="0 0 360 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="p9-before-t p9-before-d" preserveAspectRatio="xMidYMid meet">
+          <title id="p9-before-t">Before phase 9 mockup</title>
+          <desc id="p9-before-d">Thread card shows a Proposal ready chip but clicking it does nothing; author has no way to review the diff.</desc>
+          <rect x="0" y="0" width="360" height="220" fill="var(--surface)"/>
+          <rect x="20" y="30" width="320" height="160" rx="8" fill="var(--bg)" stroke="var(--accent)"/>
+          <text x="32" y="50" fill="var(--text)" font-family="sans-serif" font-size="11" font-weight="700">Thread (revise)</text>
+          <rect x="210" y="38" width="110" height="22" rx="10" fill="var(--badge-purple-bg)" stroke="var(--purple)"/>
+          <text x="265" y="52" text-anchor="middle" fill="var(--purple)" font-family="sans-serif" font-size="9" font-weight="600">Proposal ready</text>
+          <text x="32" y="80" fill="var(--text)" font-family="sans-serif" font-size="10" font-weight="600">canwa &middot; 5m</text>
+          <text x="32" y="96" fill="var(--muted)" font-family="sans-serif" font-size="10">Please split anchor and section id.</text>
+          <text x="180" y="150" text-anchor="middle" fill="var(--red)" font-family="sans-serif" font-size="10">clicking the chip does nothing yet</text>
+        </svg>
+        <div class="caption">Before phase 9 &mdash; chip present, no viewer behind it.</div>
+      </div>
+      <div class="mockup">
+        <svg width="360" height="240" viewBox="0 0 360 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="p9-after-t p9-after-d" preserveAspectRatio="xMidYMid meet">
+          <title id="p9-after-t">After phase 9 mockup</title>
+          <desc id="p9-after-d">Modal dialog centred on screen with a unified-diff viewer: red minus lines and green plus lines against a mono font; below the viewer a Reject button and an Accept (apply + resolve) button.</desc>
+          <rect x="0" y="0" width="360" height="240" fill="var(--surface)" opacity="0.9"/>
+          <rect x="30" y="20" width="300" height="205" rx="8" fill="var(--bg)" stroke="var(--accent)" stroke-width="1.5"/>
+          <text x="42" y="40" fill="var(--text)" font-family="sans-serif" font-size="11" font-weight="700">Proposed edit to design.html &sect;3</text>
+          <rect x="42" y="50" width="276" height="115" fill="var(--code-bg)" stroke="var(--border)"/>
+          <text x="48" y="66" fill="var(--muted)" font-family="monospace" font-size="8">@@ data-model section @@</text>
+          <rect x="42" y="72" width="276" height="12" fill="var(--red)" opacity="0.2"/>
+          <text x="48" y="82" fill="var(--red)" font-family="monospace" font-size="8">- anchor and sectionId share the same table</text>
+          <rect x="42" y="86" width="276" height="12" fill="var(--green)" opacity="0.2"/>
+          <text x="48" y="96" fill="var(--green)" font-family="monospace" font-size="8">+ split: anchor (4 fields) | section (id + title)</text>
+          <rect x="42" y="100" width="276" height="12" fill="var(--green)" opacity="0.2"/>
+          <text x="48" y="110" fill="var(--green)" font-family="monospace" font-size="8">+ cross-reference via anchor.sectionId &rarr; section.id</text>
+          <text x="48" y="130" fill="var(--muted)" font-family="monospace" font-size="8">&hellip; 8 more lines &hellip;</text>
+          <rect x="42" y="175" width="80" height="28" rx="4" fill="var(--surface)" stroke="var(--border)"/>
+          <text x="82" y="193" text-anchor="middle" fill="var(--text)" font-family="sans-serif" font-size="10">Reject</text>
+          <rect x="206" y="175" width="112" height="28" rx="4" fill="var(--green)"/>
+          <text x="262" y="193" text-anchor="middle" fill="var(--bg)" font-family="sans-serif" font-size="10" font-weight="600">Accept &amp; resolve</text>
+        </svg>
+        <div class="caption">After phase 9 &mdash; modal with inline unified-diff; one-click Accept applies diff and closes thread.</div>
+      </div>
+    </div>
+
+    <h4>File changes</h4>
+    <div class="filechange">
+    <table>
+      <thead><tr><th>File</th><th>Change</th><th>What changes</th><th>Test that will prove it</th></tr></thead>
+      <tbody>
+        <tr><td><code>src/templates/base.js</code></td><td><span class="badge badge-yellow">modified</span></td><td>Add <code>ProposalModal</code>: <code>role="dialog" aria-modal="true"</code>, fetches <code>/api/comments/.../proposal</code>, splits the unified diff into coloured <code>&lt;pre&gt;</code> lines (zero dep &mdash; no monaco). Accept posts <code>/revise-accept</code>, Reject posts <code>/revise-reject</code>. Focus trap + <kbd>Esc</kbd> to close.</td><td>Click chip, modal opens, diff renders with red/green lines; click Accept, server applies diff, thread flips to <em>accepted</em>, doc content reflected on next load.</td></tr>
+        <tr><td><code>src/web-server.js</code></td><td><span class="badge badge-yellow">modified</span></td><td>Add <code>GET /api/comments/:s/:d/:id/proposal</code> (reads the <code>.diff</code> file), <code>POST /revise-accept</code> (applies diff via a literal-text patch; refuses if anchor drifted), <code>POST /revise-reject</code>. All host-role gated.</td><td>Reject returns 200, no doc mutation; Accept applies cleanly or returns 409 with <em>anchor drifted</em> if the target moved since the proposal wrote.</td></tr>
+        <tr><td><code>src/comment-manager.js</code></td><td><span class="badge badge-yellow">modified</span></td><td>Add <code>applyProposal(scenario, doc, id)</code>: re-anchors via Phase 10's cascade, applies diff to matched text, appends <code>reviseStatus: "accepted"</code> + <code>resolved: true</code>. Single atomic write.</td><td>Apply fails cleanly on concurrent edit; JSONL shows rejection event with reason.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>Acceptance gate</h4>
+    <p><strong>UC-15</strong> (accept / reject proposal) fully executable. <strong>AC-15</strong> strengthened: Accept is never acknowledged without a durable doc write.</p>
+
+    <h4>Dependencies</h4>
+    <p>Phase 8 (proposals exist). Phase 10 (<code>applyProposal</code> re-uses the cascade for anchor-drift safety).</p>
+  </div>
+</details>
+
+<!-- ============ PHASE 10 ============ -->
+<details class="phase" id="phase-10">
+  <summary>
+    <div class="phase-num">10</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        Re-anchor Cascade + <code>plan_reanchor</code> MCP tool
+        <span class="badge badge-yellow">Medium</span>
+        <span class="status-pill status-pending">Pending</span>
+      </div>
+      <div class="phase-outcome">After a doc regen, comments survive &ge; 90% via the three-tier cascade; orphans get flagged once; host sees audit line on stderr. <em>Server-internal; no user-visible chrome changes beyond orphan events feeding Phase 7.</em></div>
+    </div>
+    <span class="phase-expand">&#9654;</span>
+  </summary>
+  <div class="phase-detail">
+    <p class="meta"><em>No user-visible change in this phase &mdash; this is server-internal. The orphan flags it emits surface through the UI built in Phase 7.</em></p>
+
+    <div class="callout callout-decision">
+      <div class="callout-title"><span class="badge badge-purple">Open decision</span> Fuzzy algorithm pick</div>
+      <p>Architect: Jaccard token-overlap &ge; 0.72. PM: Levenshtein similarity &ge; 0.85. Pick before writing <code>tier3Match</code>. Jaccard is O(n+m) and cheap; Levenshtein is O(n&middot;m) and catches small edits better. A 250-sentence stress sample should settle it; if both come within 3&nbsp;pp on survival rate, pick Jaccard for simplicity.</p>
+    </div>
+
+    <h4>Pseudo-code &mdash; <code>reanchorDocument(scenario, doc)</code></h4>
+<pre><code>const comments = await listComments(scenario, doc);
+const html      = await readFile(docPath);
+const sections  = parseSections(html); // { [sectionId]: text }
+
+for (const c of comments) {
+  if (!c.anchor || c.anchor.orphaned) continue;
+  const { sectionId, exact, prefix, suffix } = c.anchor;
+  const sect = sections[sectionId];
+
+  // tier (a) -- exact prefix+exact+suffix in same section
+  if (sect &amp;&amp; sect.includes(prefix + exact + suffix)) { heldCount++; continue; }
+
+  // tier (b) -- bare exact in same section
+  if (sect &amp;&amp; sect.includes(exact)) {
+    appendEvent({ id: c.id, anchor: { ...c.anchor, migratedFrom: sectionId } });
+    migratedCount++; continue;
+  }
+
+  // tier (c) -- fuzzy across all sections
+  const best = bestFuzzyMatch(exact, sections); // returns { sectionId, score }
+  if (best.score &gt;= THRESHOLD) {
+    appendEvent({ id: c.id, anchor: { ...c.anchor, sectionId: best.sectionId, migratedFrom: sectionId } });
+    migratedCount++; continue;
+  }
+
+  // tier (d) -- orphan
+  appendEvent({ id: c.id, anchor: { ...c.anchor, orphaned: true } });
+  orphanCount++;
+}
+
+console.error(`[comments] reanchor ${scenario}/${doc} held=${heldCount} migrated=${migratedCount} orphaned=${orphanCount}`);
+return { held: heldCount, migrated: migratedCount, orphaned: orphanCount };</code></pre>
+
+    <h4>File changes</h4>
+    <div class="filechange">
+    <table>
+      <thead><tr><th>File</th><th>Change</th><th>What changes</th><th>Test that will prove it</th></tr></thead>
+      <tbody>
+        <tr><td><code>src/comment-manager.js</code></td><td><span class="badge badge-yellow">modified</span></td><td>Add <code>reanchorDocument</code>, <code>parseSections</code>, <code>bestFuzzyMatch</code>, <code>tokenOverlap</code> (or Levenshtein &mdash; pending decision).</td><td>Golden-file fixture: 10 comments against a doc, regenerate with 20% churn, assert &ge; 90% held+migrated.</td></tr>
+        <tr><td><code>src/index.js</code></td><td><span class="badge badge-yellow">modified</span></td><td>Register MCP tool <code>plan_reanchor</code> <code>{ scenario, doc? }</code> &rarr; runs cascade over one doc or all docs in the scenario.</td><td><code>plan_reanchor built-in-comment-ui</code> returns <code>{ held, migrated, orphaned }</code> summary.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>Acceptance gate</h4>
+    <p><strong>AC-3</strong> (re-anchor survival &ge; 90% under &le; 20% churn) flips green.</p>
+
+    <h4>Dependencies</h4>
+    <p>Phase 1 (stable section ids). Phase 2 (<code>appendEvent</code>, <code>listComments</code>).</p>
+  </div>
+</details>
+
+<!-- ============ PHASE 11 ============ -->
+<details class="phase" id="phase-11">
+  <summary>
+    <div class="phase-num">11</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        Hardening: XSS sweep, path traversal sweep, disk-full, self-dev loop
+        <span class="badge badge-yellow">Medium</span>
+        <span class="status-pill status-pending">Pending</span>
+      </div>
+      <div class="phase-outcome">All P0 ACs green; repo ready to ship. <em>No user-visible change &mdash; this is pure verification.</em></div>
+    </div>
+    <span class="phase-expand">&#9654;</span>
+  </summary>
+  <div class="phase-detail">
+    <p class="meta"><em>No user-visible change &mdash; this is verification work.</em></p>
+
+    <h4>File changes</h4>
+    <div class="filechange">
+    <table>
+      <thead><tr><th>File</th><th>Change</th><th>What changes</th><th>Test that will prove it</th></tr></thead>
+      <tbody>
+        <tr><td><code>src/templates/base.js</code></td><td><span class="badge badge-yellow">modified</span></td><td>Final XSS escape audit on every <code>textContent</code> / <code>insertAdjacentHTML</code> call site; add CSP <code>default-src 'self'</code> meta.</td><td>12-payload XSS list from <a href="test-plan.html">test-plan &sect;6.2</a> runs clean.</td></tr>
+        <tr><td><code>src/comment-manager.js</code></td><td><span class="badge badge-yellow">modified</span></td><td>Switch <code>appendEvent</code> to <code>fs.open(path, 'a')</code> with per-file mutex; call <code>fsync</code>; map <code>ENOSPC</code> &rarr; 507.</td><td>50-parallel post stress returns 50 distinct JSONL lines with no interleave; disk-full mock returns 507 + UI banner.</td></tr>
+        <tr><td><code>plan-harness/DEVELOPMENT.md</code></td><td><span class="badge badge-yellow">modified</span></td><td>Add self-dev recipe: run <code>npm run dev</code>, restart Claude Code, regenerate <code>built-in-comment-ui/design.html</code>, verify comments on the prior doc survive the regen (they are the reviews of this very feature).</td><td>The design doc you are reading survives its own re-generation with 0 orphans.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>Acceptance gate</h4>
+    <p><strong>AC-5, AC-6, AC-10, AC-15</strong> all flip to green in UI-observable terms. The six P0 scenarios in <a href="test-plan.html#golden-path">test-plan &sect;4</a> all execute clean.</p>
+
+    <h4>Dependencies</h4>
+    <p>All prior phases.</p>
+  </div>
+</details>
+
+<!-- ============ 3. DEPENDENCY GRAPH ============ -->
+<h2 id="dep-graph">3. Full Dependency Graph</h2>
+<div class="diagram">
+  <svg width="820" height="400" viewBox="0 0 820 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="dep-t dep-d" preserveAspectRatio="xMidYMid meet">
+    <title id="dep-t">Phase dependency graph</title>
+    <desc id="dep-d">Directed acyclic graph with 11 nodes. Green nodes 1, 2, 3 are shipped; grey nodes 4 through 11 are pending. Edges: 1 to 2, 1 to 4, 2 to 3, 2 to 5, 4 to 5, 5 to 6, 6 to 7, 6 to 8, 8 to 9, 1 and 2 to 10, 7 depends on 10, 9 depends on 10, and 11 depends on every phase.</desc>
+
+    <defs>
+      <marker id="dep-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--muted)"/>
+      </marker>
+    </defs>
+
+    <!-- Nodes (x, y, id, label) -->
+    <!-- Shipped (green) -->
+    <g>
+      <circle cx="90"  cy="80"  r="28" fill="var(--badge-green-bg)" stroke="var(--green)" stroke-width="2"/>
+      <text  x="90"  y="85"  text-anchor="middle" fill="var(--green)" font-family="sans-serif" font-size="14" font-weight="700">1</text>
+      <text  x="90"  y="120" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="10">section ids</text>
+
+      <circle cx="230" cy="80"  r="28" fill="var(--badge-green-bg)" stroke="var(--green)" stroke-width="2"/>
+      <text  x="230" y="85"  text-anchor="middle" fill="var(--green)" font-family="sans-serif" font-size="14" font-weight="700">2</text>
+      <text  x="230" y="120" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="10">server CRUD</text>
+
+      <circle cx="370" cy="80"  r="28" fill="var(--badge-green-bg)" stroke="var(--green)" stroke-width="2"/>
+      <text  x="370" y="85"  text-anchor="middle" fill="var(--green)" font-family="sans-serif" font-size="14" font-weight="700">3</text>
+      <text  x="370" y="120" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="10">sidebar read-only</text>
+    </g>
+
+    <!-- Pending (grey) -->
+    <g>
+      <circle cx="90"  cy="200" r="28" fill="var(--surface)" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="3,3"/>
+      <text  x="90"  y="205" text-anchor="middle" fill="var(--text)" font-family="sans-serif" font-size="14" font-weight="700">4</text>
+      <text  x="90"  y="240" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="10">detector + pill</text>
+
+      <circle cx="230" cy="200" r="28" fill="var(--surface)" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="3,3"/>
+      <text  x="230" y="205" text-anchor="middle" fill="var(--text)" font-family="sans-serif" font-size="14" font-weight="700">5</text>
+      <text  x="230" y="240" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="10">composer</text>
+
+      <circle cx="370" cy="200" r="28" fill="var(--surface)" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="3,3"/>
+      <text  x="370" y="205" text-anchor="middle" fill="var(--text)" font-family="sans-serif" font-size="14" font-weight="700">6</text>
+      <text  x="370" y="240" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="10">threads + mark</text>
+
+      <circle cx="510" cy="200" r="28" fill="var(--surface)" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="3,3"/>
+      <text  x="510" y="205" text-anchor="middle" fill="var(--text)" font-family="sans-serif" font-size="14" font-weight="700">7</text>
+      <text  x="510" y="240" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="10">orphan group</text>
+
+      <circle cx="510" cy="80"  r="28" fill="var(--surface)" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="3,3"/>
+      <text  x="510" y="85"  text-anchor="middle" fill="var(--text)" font-family="sans-serif" font-size="14" font-weight="700">8</text>
+      <text  x="510" y="120" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="10">revise + dispatcher</text>
+
+      <circle cx="650" cy="80"  r="28" fill="var(--surface)" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="3,3"/>
+      <text  x="650" y="85"  text-anchor="middle" fill="var(--text)" font-family="sans-serif" font-size="14" font-weight="700">9</text>
+      <text  x="650" y="120" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="10">proposal modal</text>
+
+      <circle cx="650" cy="200" r="28" fill="var(--surface)" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="3,3"/>
+      <text  x="650" y="205" text-anchor="middle" fill="var(--text)" font-family="sans-serif" font-size="14" font-weight="700">10</text>
+      <text  x="650" y="240" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="10">reanchor</text>
+
+      <circle cx="770" cy="320" r="28" fill="var(--surface)" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="3,3"/>
+      <text  x="770" y="325" text-anchor="middle" fill="var(--text)" font-family="sans-serif" font-size="14" font-weight="700">11</text>
+      <text  x="770" y="360" text-anchor="middle" fill="var(--muted)" font-family="sans-serif" font-size="10">harden</text>
+    </g>
+
+    <!-- Edges -->
+    <g stroke="var(--muted)" stroke-width="1.5" fill="none">
+      <line x1="118" y1="80" x2="202" y2="80" marker-end="url(#dep-arr)"/>
+      <line x1="90"  y1="108" x2="90"  y2="172" marker-end="url(#dep-arr)"/>
+      <line x1="258" y1="80" x2="342" y2="80" marker-end="url(#dep-arr)"/>
+      <line x1="230" y1="108" x2="230" y2="172" marker-end="url(#dep-arr)"/>
+      <line x1="118" y1="200" x2="202" y2="200" marker-end="url(#dep-arr)"/>
+      <line x1="258" y1="200" x2="342" y2="200" marker-end="url(#dep-arr)"/>
+      <line x1="398" y1="200" x2="482" y2="200" marker-end="url(#dep-arr)"/>
+      <line x1="380" y1="174" x2="500" y2="110" marker-end="url(#dep-arr)"/>
+      <line x1="538" y1="80" x2="622" y2="80" marker-end="url(#dep-arr)"/>
+
+      <!-- 1 &amp; 2 to 10 -->
+      <line x1="118" y1="92" x2="622" y2="190" marker-end="url(#dep-arr)"/>
+      <line x1="252" y1="100" x2="625" y2="192" marker-end="url(#dep-arr)"/>
+      <!-- 10 to 7 and 10 to 9 -->
+      <line x1="622" y1="195" x2="538" y2="200" marker-end="url(#dep-arr)"/>
+      <line x1="650" y1="172" x2="650" y2="110" marker-end="url(#dep-arr)"/>
+      <!-- all to 11 -->
+      <line x1="535" y1="225" x2="745" y2="300" marker-end="url(#dep-arr)"/>
+      <line x1="670" y1="225" x2="760" y2="295" marker-end="url(#dep-arr)"/>
+      <line x1="670" y1="105" x2="755" y2="295" marker-end="url(#dep-arr)"/>
+    </g>
+  </svg>
+  <div class="caption">Figure 1. Phase dependency DAG &mdash; 11 nodes, 16 edges, acyclic. Green solid nodes are shipped; grey dashed nodes are pending. Phase 11 is the integration sink.</div>
+</div>
+
+<!-- ============ 4. CUTOVER CHECKLIST ============ -->
+<h2 id="cutover">4. Cut-over Checklist</h2>
+<p>One tick per phase. When every box is checked, the feature is ready for <code>/plan-share</code> on a real review team. These items are picked up by the <em>TODOs</em> sidebar panel via pattern 2.</p>
+<ul class="checklist">
+  <li>[x] Phase 1 &mdash; stable section ids shipped <code>b166e02</code></li>
+  <li>[x] Phase 2 &mdash; comment CRUD + SSE + rate-limit shipped <code>b279748</code></li>
+  <li>[x] Phase 3 &mdash; read-only TODOs + Comments sidebar shipped <code>50f070a</code> / <code>9eab8c0</code></li>
+  <li>[ ] Phase 4 &mdash; SelectionDetector + floating button wired; AC-1 green in browser</li>
+  <li>[ ] Phase 5 &mdash; composer panel submits with <kbd>Ctrl</kbd>+<kbd>Enter</kbd>; draft survives reload; AC-8 green</li>
+  <li>[ ] Phase 6 &mdash; thread cards + inline <code>&lt;mark&gt;</code> highlights + SSE live updates; AC-4 &amp; AC-10 green</li>
+  <li>[ ] Phase 7 &mdash; orphan pinned group with Reattach + Archive; AC-9 green</li>
+  <li>[ ] Phase 8 &mdash; revise two-button composer + dispatcher + <code>/plan-revise</code>; UC-13 green</li>
+  <li>[ ] Phase 9 &mdash; proposal modal with diff viewer; UC-15 green</li>
+  <li>[ ] Phase 10 &mdash; re-anchor cascade + <code>plan_reanchor</code> MCP; AC-3 green on 20%-churn fixture</li>
+  <li>[ ] Phase 11 &mdash; XSS sweep + disk-full mutex + self-dev loop; AC-5 / AC-6 / AC-15 green</li>
+  <li>[ ] Open decision A resolved: who may resolve (host-only vs any-auth)</li>
+  <li>[ ] Open decision B resolved: fuzzy algo (Jaccard 0.72 vs Levenshtein 0.85)</li>
+  <li>[ ] Design doc regenerated and its own comments survive &ge; 90% (self-dev loop)</li>
+</ul>
+
+<!-- ============ 5. ROLLBACK PLAN ============ -->
+<h2 id="rollback">5. Rollback Plan</h2>
+<p>Every phase is git-reversible via <code>git revert &lt;commit&gt;</code>. Data implications per phase:</p>
+<table>
+  <thead><tr><th>Phase</th><th>How to revert</th><th>Data left behind</th><th>Notify</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Revert the base.js stubs. Section ids fall back to the legacy slug-from-title.</td><td>None &mdash; ids are recomputed on render; old anchors still resolve against slugs.</td><td>Nobody; no reviewers yet.</td></tr>
+    <tr><td>2</td><td>Revert <code>comment-manager.js</code> and the 5 routes. 404 on any <code>/api/comments/*</code>.</td><td>JSONL files remain on disk under <code>plans/&lt;s&gt;/.comments/</code>; nothing reads them.</td><td>Any reviewer with a tab open &mdash; they will see a banner <em>"comments disabled"</em> on next POST.</td></tr>
+    <tr><td>3</td><td>Revert <code>injectSidebarPanels</code>. Sidebar goes back to section-nav only.</td><td>None.</td><td>Nobody.</td></tr>
+    <tr><td>4</td><td>Revert the <code>SelectionDetector</code> IIFE. Reviewers lose the pill but read continues.</td><td>None.</td><td>Active reviewers via a pinned banner in the doc.</td></tr>
+    <tr><td>5</td><td>Revert the composer panel. Floating pill still appears but clicking is a no-op.</td><td>Any drafts in <code>localStorage</code> remain but become unreachable until the panel ships again.</td><td>Active reviewers.</td></tr>
+    <tr><td>6</td><td>Revert thread-card + highlight code. Sidebar falls back to Phase-3 read-only list.</td><td>All comments still visible in the list &mdash; just not threaded or highlighted.</td><td>Active reviewers.</td></tr>
+    <tr><td>7</td><td>Revert orphan group. Orphans merge back into the flat list with an <em>orphaned</em> inline tag.</td><td>Orphan JSONL events remain.</td><td>The host, since they lose visibility into which reviews need reattachment.</td></tr>
+    <tr><td>8</td><td>Revert revise button + dispatcher + skill. Composer goes back to one button.</td><td>Any pending revise comments stay in JSONL; they are readable but not dispatchable.</td><td>The host &mdash; they will need to revise manually.</td></tr>
+    <tr><td>9</td><td>Revert proposal modal + accept/reject routes. Chip still shows but clicking it no-ops.</td><td>Existing proposal <code>.diff</code> files stay on disk for manual apply.</td><td>The host, since accept / reject becomes a manual patch.</td></tr>
+    <tr><td>10</td><td>Revert <code>reanchorDocument</code> + MCP tool. Anchors no longer migrate on regen.</td><td>Any prior migrated events stay in JSONL; the fold still shows the last event.</td><td>The host &mdash; regens will now produce orphan explosions.</td></tr>
+    <tr><td>11</td><td>Revert the hardening commits. Fall back to the looser append path and no CSP.</td><td>Any pending 507s become silent drops again &mdash; unsafe; avoid reverting 11 alone.</td><td>Security owner + host.</td></tr>
+  </tbody>
+</table>
+
+<!-- ============ 6. SMOKE TESTS ============ -->
+<h2 id="smoke-tests">6. Smoke-Test Recipes</h2>
+<p>Each recipe is 3 to 5 lines and completes in under 30&nbsp;seconds.</p>
+
+<h3 id="smoke-4">Phase 4 &mdash; selection detector</h3>
+<div class="smoke">
+  <div class="smoke-title">Browser console (devtunnel or localhost)</div>
+<pre><code>const r = document.createRange();
+r.selectNodeContents(document.querySelector('[data-section-id] p'));
+window.getSelection().removeAllRanges();
+window.getSelection().addRange(r);
+document.dispatchEvent(new MouseEvent('mouseup'));
+// expect: .ph-comment-pill present within 150ms</code></pre>
+</div>
+
+<h3 id="smoke-5">Phase 5 &mdash; composer submit</h3>
+<div class="smoke">
+  <div class="smoke-title">curl (loopback)</div>
+<pre><code>curl -s -X POST http://localhost:PORT/api/comments/built-in-comment-ui/design.html \
+  -H 'content-type: application/json' \
+  -d '{"anchor":{"sectionId":"sec-abc","exact":"...","prefix":"","suffix":""},"body":"smoke"}'
+# expect: 201 with { id, author:"Host (local)", createdAt }</code></pre>
+</div>
+
+<h3 id="smoke-6">Phase 6 &mdash; thread + SSE</h3>
+<div class="smoke">
+  <div class="smoke-title">Two browser tabs</div>
+<pre><code>Tab A: select text, open composer, post "ping".
+Tab B (same doc open): thread card for "ping" renders within 1s.
+Reload Tab A: inline &lt;mark&gt; highlight wraps the selection.</code></pre>
+</div>
+
+<h3 id="smoke-7">Phase 7 &mdash; orphan group</h3>
+<div class="smoke">
+  <div class="smoke-title">Playwright</div>
+<pre><code>await page.evaluate(() =&gt; fetch('/api/comments/.../cmt_x', {
+  method:'PATCH', body:JSON.stringify({anchor:{orphaned:true}}) }));
+await page.reload();
+await expect(page.locator('.ph-orphan-group')).toContainText('Needs reattachment (1)');</code></pre>
+</div>
+
+<h3 id="smoke-8">Phase 8 &mdash; revise dispatch</h3>
+<div class="smoke">
+  <div class="smoke-title">curl + stderr tail</div>
+<pre><code>curl -X POST .../design.html -d '{"anchor":{...},"body":"please split","intent":"revise"}'
+# expect: 201 with reviseStatus:"pending"
+claude run /plan-revise built-in-comment-ui
+# expect stderr: [comments] dispatch cmt_... &rarr; dispatched &rarr; proposed</code></pre>
+</div>
+
+<h3 id="smoke-9">Phase 9 &mdash; proposal accept</h3>
+<div class="smoke">
+  <div class="smoke-title">Browser</div>
+<pre><code>Click "Proposal ready" chip on a revise thread.
+Modal opens with red/green diff.
+Click "Accept &amp; resolve".
+Reload: the design.html section reflects the diff; thread shows Accepted.</code></pre>
+</div>
+
+<h3 id="smoke-10">Phase 10 &mdash; reanchor</h3>
+<div class="smoke">
+  <div class="smoke-title">Claude Code</div>
+<pre><code>Edit built-in-comment-ui/design.html: replace 3 sentences in &sect;3.
+claude run plan_reanchor built-in-comment-ui
+# expect JSON: { held:N, migrated:M, orphaned:K } with held+migrated &gt;= 0.9 * total
+# expect stderr: [comments] reanchor ... line</code></pre>
+</div>
+
+<h3 id="smoke-11">Phase 11 &mdash; hardening</h3>
+<div class="smoke">
+  <div class="smoke-title">Stress + XSS</div>
+<pre><code>seq 1 50 | xargs -P 50 -I{} curl -s -X POST .../design.html -d '{"body":"stress {}"}' &gt;/dev/null
+wc -l plans/built-in-comment-ui/.comments/design.jsonl   # expect +50
+curl -X POST .../design.html -d '{"body":"&lt;img src=x onerror=alert(1)&gt;"}'
+# open in browser, assert no script executes, body shown as text</code></pre>
+</div>
+
+<!-- ============ 7. FOLLOW-UP RISKS ============ -->
+<h2 id="followup-risks">7. Follow-up Risks</h2>
+<p>Risks the design doc under-weighted, surfaced while sequencing the phases:</p>
+
+<h4>R-FU-1 &mdash; injectSidebarPanels vs SelectionDetector DOM order</h4>
+<p>Phase 3 inserts sidebar DOM on <code>DOMContentLoaded</code>. Phase 4's selection detector walks ancestors for <code>[data-section-id]</code>. If the sidebar injection re-parents main content or wraps it in a shadow DOM, the ancestor walk breaks. <strong>Mitigation:</strong> the selection detector must bind on <code>document</code>, not on a cached <code>.container</code> reference, and it must skip any selection whose <code>commonAncestorContainer</code> is inside <code>nav.side-nav</code>.</p>
+
+<h4>R-FU-2 &mdash; <code>window.__PLAN_HARNESS_META__</code> cache staleness</h4>
+<p>Phase 1 emits the meta object at render time. If the host changes their display name mid-session, the widget keeps the old name until reload. This is an implicit dependency of AC-2; the server stamps the truth, so no incorrect data is persisted, but the composer may show the wrong reviewer name in optimistic renders. <strong>Mitigation:</strong> always read <code>author</code> off the POST response, never off <code>__PLAN_HARNESS_META__</code>, when rendering the new thread card.</p>
+
+<h4>R-FU-3 &mdash; proposal modal shadows existing theme toggle</h4>
+<p>The theme toggle is <code>position: fixed; z-index: 10000</code>. The Phase 9 modal is also a dialog at high z-index. If both paint at once, clicking the toggle through a modal scrim could blur focus out of the modal and break the focus-trap invariant. <strong>Mitigation:</strong> modal scrim uses <code>z-index: 10500</code>, theme toggle stays at <code>10000</code>, scrim blocks pointer events on the toggle.</p>
+
+<h4>R-FU-4 &mdash; <code>/plan-revise</code> batching on large queues</h4>
+<p>Design assumes a handful of pending revises. A long review cycle could accumulate 30+. The current spec dispatches them in sequence without inter-task delay, which bursts the subagent runtime and risks rate-limit exhaustion at the agent-model layer. <strong>Mitigation:</strong> add a configurable batch size (default 5) in <code>.comment-config.json</code>; dispatcher yields between batches.</p>
+
+<h4>R-FU-5 &mdash; <code>.comments/</code> in plugin's own repo</h4>
+<p>Per the self-dev loop (Phase 11), running the plugin against its own plans dir writes JSONL under this very repo's <code>plans/built-in-comment-ui/.comments/</code>. These become part of the plugin's history unless excluded. <strong>Mitigation:</strong> append <code>plans/**/.comments/</code> and <code>plans/**/*.proposals/</code> to the repo's <code>.gitignore</code> during Phase 11.</p>
+
+<h4>R-FU-6 &mdash; proposal apply races regen</h4>
+<p>Phase 9's Accept path re-runs the cascade before applying the diff. If a regen happens between proposal-written and accept-clicked, the anchor may have migrated twice and the diff's hunk headers no longer match. <strong>Mitigation:</strong> the accept endpoint should match by <code>anchor.exact</code> rather than by line numbers; if no unique match exists, refuse with 409 and surface the re-anchor state in the modal so the author sees why.</p>
+
+</main>
+
+<script>
+(function() {
+  var KEY = 'plan-harness-theme';
+  var NEXT = { system: 'light', light: 'dark', dark: 'system' };
+  var html = document.documentElement;
+  var toggle = document.getElementById('themeToggle');
+
+  function resolvePref(pref) {
+    if (pref === 'dark') return 'dark';
+    if (pref === 'light') return 'light';
+    return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  function applyPref(pref) {
+    try { localStorage.setItem(KEY, pref); } catch(e) {}
+    html.setAttribute('data-theme', resolvePref(pref));
+    html.setAttribute('data-theme-pref', pref);
+    if (toggle) {
+      toggle.setAttribute('data-theme-pref', pref);
+      toggle.setAttribute('aria-label', 'Theme: ' + pref + ' (click to cycle)');
+      toggle.setAttribute('title', 'Theme: ' + pref + ' -- click to cycle');
+    }
+  }
+
+  var currentPref = (function() { try { return localStorage.getItem(KEY); } catch(e) { return null; } })() || 'system';
+  applyPref(currentPref);
+
+  if (toggle) {
+    toggle.addEventListener('click', function() {
+      var pref = (function() { try { return localStorage.getItem(KEY); } catch(e) { return null; } })() || 'system';
+      applyPref(NEXT[pref] || 'system');
+    });
+  }
+
+  try {
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+      var pref = (function() { try { return localStorage.getItem(KEY); } catch(e) { return null; } })() || 'system';
+      if (pref === 'system') applyPref('system');
+    });
+  } catch(e) {}
+
+  window.addEventListener('storage', function(e) {
+    if (e.key === KEY && e.newValue) applyPref(e.newValue);
+  });
+
+  var navLinks = document.querySelectorAll('.section-nav a[href^="#"]');
+  var sections = [];
+  navLinks.forEach(function(a) {
+    var id = a.getAttribute('href').slice(1);
+    var el = document.getElementById(id);
+    if (el) sections.push({ id: id, el: el, link: a });
+  });
+
+  function updateActive() {
+    var y = window.scrollY + 120;
+    var current = null;
+    for (var i = sections.length - 1; i >= 0; i--) {
+      if (sections[i].el.offsetTop <= y) { current = sections[i]; break; }
+    }
+    navLinks.forEach(function(l) { l.classList.remove('active'); });
+    if (current) current.link.classList.add('active');
+  }
+  window.addEventListener('scroll', updateActive, { passive: true });
+  updateActive();
+})();
+</script>
+
+</body>
+</html>

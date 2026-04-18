@@ -16,5 +16,11 @@
   "testPlanHtml": "test-plan.html",
   "testPlanGeneratedAt": "2026-04-18T00:00:00.000Z",
   "stateMachineHtml": "state-machine.html",
-  "stateMachineGeneratedAt": "2026-04-18T12:27:10Z"
+  "stateMachineGeneratedAt": "2026-04-18T12:27:10Z",
+  "implementationPlanHtml": "implementation-plan.html",
+  "implementationPlanGeneratedAt": "2026-04-18T14:05:00Z",
+  "testCasesHtml": "test-cases.html",
+  "testCasesGeneratedAt": "2026-04-18T17:20:00Z",
+  "dashboardHtml": "dashboard.html",
+  "dashboardGeneratedAt": "2026-04-18T17:35:00Z"
 }

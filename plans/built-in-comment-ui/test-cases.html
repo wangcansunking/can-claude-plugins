@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Cases -- built-in-comment-ui</title>
+<script>
+(function(){
+  try {
+    var KEY='plan-harness-theme';
+    var pref=localStorage.getItem(KEY)||'system';
+    var dark=pref==='dark'||(pref==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.setAttribute('data-theme', dark?'dark':'light');
+    document.documentElement.setAttribute('data-theme-pref', pref);
+  } catch(e) {}
+})();
+</script>
+<style>
+:root {
+  --bg:#f7f8f8;--surface:#f3f4f5;--border:#d0d6e0;--text:#08090a;--muted:#62666d;--accent:#5e6ad2;
+  --green:#1a7f37;--red:#cf222e;--yellow:#9a6700;--purple:#7170ff;--orange:#b35200;--code-bg:#eeeff1;
+  --svg-bg:#f3f4f5;--svg-bg2:#f7f8f8;--svg-text:#08090a;--svg-muted:#62666d;--svg-border:#d0d6e0;
+  --even-row-bg:rgba(243,244,245,0.7);
+  --badge-green-bg:rgba(26,127,55,0.1);--badge-yellow-bg:rgba(154,103,0,0.1);
+  --badge-red-bg:rgba(207,34,46,0.1);--badge-blue-bg:rgba(94,106,210,0.1);
+  --badge-purple-bg:rgba(113,112,255,0.1);--badge-orange-bg:rgba(179,82,0,0.1);
+  --font-ui:'Inter Variable',Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --font-mono:'Berkeley Mono','Cascadia Code','Fira Code',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  --font-features:"cv01","ss03";
+}
+[data-theme="dark"] {
+  --bg:#08090a;--surface:#0f1011;--border:rgba(255,255,255,0.08);--text:#f7f8f8;--muted:#8a8f98;--accent:#7170ff;
+  --green:#27a644;--red:#f85149;--yellow:#d29922;--purple:#828fff;--orange:#e3934a;--code-bg:#141516;
+  --svg-bg:#0f1011;--svg-bg2:#08090a;--svg-text:#f7f8f8;--svg-muted:#8a8f98;--svg-border:rgba(255,255,255,0.08);
+  --even-row-bg:rgba(25,26,27,0.5);
+  --badge-green-bg:rgba(39,166,68,0.15);--badge-yellow-bg:rgba(210,153,34,0.15);
+  --badge-red-bg:rgba(248,81,73,0.15);--badge-blue-bg:rgba(113,112,255,0.15);
+  --badge-purple-bg:rgba(130,143,255,0.15);--badge-orange-bg:rgba(227,147,74,0.15);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; font-feature-settings: var(--font-features); }
+body { font-family: var(--font-ui); background: var(--bg); color: var(--text); line-height: 1.6; font-weight: 400; letter-spacing: -0.01em; padding-left: 260px; padding-top: 3rem; transition: background-color .2s, color .2s; }
+code, pre, kbd { font-family: var(--font-mono); }
+h1 { font-size: 2rem; font-weight: 510; letter-spacing: -0.02em; border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; margin-bottom: 0.4rem; }
+h2 { font-size: 1.5rem; font-weight: 510; letter-spacing: -0.015em; color: var(--accent); margin-top: 2.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; scroll-margin-top: 1rem; }
+h3 { font-size: 1.1rem; font-weight: 590; color: var(--purple); margin-top: 1.5rem; margin-bottom: 0.6rem; }
+p, li { margin-bottom: 0.4rem; }
+ul, ol { padding-left: 1.4rem; margin-bottom: 0.8rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.meta { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.2rem; }
+
+.plan-tabs { display: flex; gap: 0.15rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; overflow-x: auto; scrollbar-width: none; }
+.plan-tabs::-webkit-scrollbar { display: none; }
+.plan-tabs a { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.55rem 0.85rem; font-size: 0.87rem; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; font-weight: 510; }
+.plan-tabs a:hover:not([aria-disabled="true"]) { color: var(--text); }
+.plan-tabs a.active { color: var(--accent); border-bottom-color: var(--accent); }
+.plan-tabs a[aria-disabled="true"] { opacity: 0.5; cursor: default; }
+.plan-tabs .soon { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.12em 0.45em; border-radius: 10px; background: var(--code-bg); color: var(--muted); border: 1px solid var(--border); font-weight: 510; }
+
+.theme-toggle { position: fixed; top: 1rem; right: 1.5rem; z-index: 10000; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.45rem 0.55rem; cursor: pointer; color: var(--text); display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; }
+.theme-toggle:hover { border-color: var(--accent); }
+.theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.theme-toggle svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.theme-toggle svg[data-theme-icon] { display: none; }
+.theme-toggle[data-theme-pref="system"] svg[data-theme-icon="system"],
+.theme-toggle[data-theme-pref="light"] svg[data-theme-icon="light"],
+.theme-toggle[data-theme-pref="dark"] svg[data-theme-icon="dark"] { display: block; }
+
+.side-nav { position: fixed; top: 0; left: 0; width: 260px; height: 100vh; background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; z-index: 998; display: flex; flex-direction: column; }
+.section-nav { padding: 4rem 0 0.6rem; overflow-y: auto; flex: 1; }
+.section-nav .group-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0.3rem 1rem 0.3rem; }
+.section-nav a { display: block; padding: 0.3rem 1rem; font-size: 0.8rem; color: var(--muted); text-decoration: none; border-left: 3px solid transparent; }
+.section-nav a:hover { color: var(--text); background: var(--bg); }
+.section-nav a.active { color: var(--accent); border-left-color: var(--accent); background: var(--bg); font-weight: 510; }
+.section-nav a.sub { padding-left: 1.8rem; font-size: 0.76rem; }
+
+.container { max-width: 1060px; margin: 0 auto; padding: 1rem 2.5rem 5rem; }
+
+code { background: var(--code-bg); padding: 0.12em 0.4em; border-radius: 4px; font-size: 0.88em; color: var(--yellow); }
+pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem 0.9rem; overflow-x: auto; margin: 0.5rem 0; font-size: 0.78rem; line-height: 1.5; color: var(--text); }
+pre code { background: transparent; padding: 0; color: inherit; font-size: inherit; }
+
+table { width: 100%; border-collapse: collapse; margin: 0.7rem 0; font-size: 0.88rem; }
+thead th { background: var(--surface); color: var(--accent); text-align: left; padding: 0.45rem 0.7rem; border: 1px solid var(--border); font-weight: 600; }
+td { padding: 0.4rem 0.7rem; border: 1px solid var(--border); vertical-align: top; }
+tbody tr:nth-child(even) { background: var(--even-row-bg); }
+
+.badge { display: inline-block; padding: 0.1em 0.5em; border-radius: 12px; font-size: 0.74rem; font-weight: 600; white-space: nowrap; }
+.badge-green { background: var(--badge-green-bg); color: var(--green); border: 1px solid var(--green); }
+.badge-yellow { background: var(--badge-yellow-bg); color: var(--yellow); border: 1px solid var(--yellow); }
+.badge-red { background: var(--badge-red-bg); color: var(--red); border: 1px solid var(--red); }
+.badge-blue { background: var(--badge-blue-bg); color: var(--accent); border: 1px solid var(--accent); }
+.badge-purple { background: var(--badge-purple-bg); color: var(--purple); border: 1px solid var(--purple); }
+.badge-orange { background: var(--badge-orange-bg); color: var(--orange); border: 1px solid var(--orange); }
+.badge-gray { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+
+kbd { display: inline-block; padding: 0.05em 0.4em; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; background: var(--code-bg); color: var(--text); font-size: 0.78rem; }
+
+.diagram { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.8rem; margin: 0.8rem 0; text-align: center; }
+.diagram svg { display: block; margin: 0 auto; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); max-width: 100%; height: auto; }
+.diagram .caption { margin-top: 0.5rem; color: var(--muted); font-size: 0.82rem; font-style: italic; }
+
+/* Summary & filter bar */
+.summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; margin: 0.8rem 0; }
+.summary-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.8rem 1rem; text-align: center; }
+.summary-value { font-size: 1.6rem; font-weight: 700; color: var(--accent); line-height: 1.1; }
+.summary-label { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.2rem; }
+.filter-bar { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.6rem 0 1rem; }
+.filter-bar select, .filter-bar input, .filter-bar button { font-family: var(--font-ui); font-size: 0.85rem; padding: 0.35rem 0.6rem; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); }
+.filter-bar input { flex: 1; min-width: 140px; }
+.filter-bar button { cursor: pointer; }
+.filter-bar button:hover { border-color: var(--accent); }
+
+/* Details/summary — test case rows */
+details.tc { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; margin: 0.4rem 0; overflow: hidden; }
+details.tc summary { cursor: pointer; padding: 0.5rem 0.8rem; display: flex; align-items: center; gap: 0.55rem; list-style: none; user-select: none; font-size: 0.88rem; }
+details.tc summary::-webkit-details-marker { display: none; }
+details.tc summary::after { content: '\25B8'; color: var(--accent); transition: transform 0.15s; margin-left: auto; }
+details.tc[open] summary::after { transform: rotate(90deg); }
+details.tc summary:hover { background: var(--bg); }
+details.tc summary input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--green); flex-shrink: 0; }
+details.tc summary .tc-id { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+details.tc summary .tc-title { color: var(--text); }
+details.tc[data-checked="true"] { opacity: 0.75; }
+details.tc[data-checked="true"] summary .tc-title { text-decoration: line-through; color: var(--muted); }
+details.tc .body { padding: 0.4rem 0.9rem 0.8rem 0.9rem; border-top: 1px solid var(--border); font-size: 0.86rem; }
+details.tc .body ul { margin: 0.3rem 0 0.5rem; }
+details.tc .body table { margin: 0.3rem 0; font-size: 0.84rem; }
+details.tc .body pre { font-size: 0.74rem; padding: 0.5rem 0.7rem; }
+details.tc .neg { font-size: 0.82rem; color: var(--muted); margin-top: 0.4rem; border-left: 3px solid var(--red); padding-left: 0.6rem; }
+details.tc .neg strong { color: var(--red); }
+
+/* Playground */
+.playground { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; margin: 0.8rem 0 1.5rem; }
+.pg-grid { display: grid; grid-template-columns: 1fr 320px; gap: 0.8rem; align-items: start; }
+.pg-doc { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.8rem 1rem; font-size: 0.86rem; line-height: 1.55; }
+.pg-doc p { margin-bottom: 0.5rem; }
+.pg-sidebar { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 0.8rem; min-height: 200px; font-size: 0.82rem; color: var(--muted); }
+.pg-sidebar .pg-head { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.4rem; font-weight: 700; }
+.pg-sidebar .pg-empty { color: var(--muted); font-style: italic; font-size: 0.82rem; }
+.pg-controls { margin-top: 0.8rem; padding: 0.7rem 0.8rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center; font-size: 0.84rem; }
+.pg-controls fieldset { border: 0; display: flex; gap: 0.4rem; align-items: center; }
+.pg-controls legend { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-right: 0.4rem; }
+.pg-controls label { display: inline-flex; gap: 0.25rem; align-items: center; cursor: pointer; }
+.pg-controls label input { accent-color: var(--accent); }
+.pg-controls label input:disabled + span { opacity: 0.45; text-decoration: line-through; }
+.pg-expected { margin-top: 0.6rem; font-size: 0.85rem; color: var(--text); padding: 0.5rem 0.7rem; background: var(--badge-blue-bg); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; }
+.pg-payload { margin-top: 0.6rem; }
+.pg-payload pre { background: var(--code-bg); margin: 0.3rem 0; font-size: 0.76rem; max-height: 180px; overflow: auto; }
+.pg-payload button { font-family: var(--font-ui); font-size: 0.82rem; padding: 0.3rem 0.7rem; border: 1px solid var(--border); border-radius: 5px; background: var(--accent); color: #fff; cursor: pointer; }
+.pg-payload button:hover { filter: brightness(1.08); }
+.pg-sel-hi { background: rgba(94,106,210,0.22); border-radius: 2px; padding: 1px 0; }
+
+/* Trace appendix */
+.trace-table { font-size: 0.85rem; }
+
+@media (max-width: 900px) { .pg-grid { grid-template-columns: 1fr; } }
+@media (max-width: 768px) {
+  body { padding-left: 0; }
+  .side-nav { position: static; width: 100%; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  .section-nav { display: none; }
+  .container { padding: 1rem 1rem 3rem; }
+  .summary-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media print {
+  body { padding-left: 0; padding-top: 0; background: #fff; color: #000; }
+  .side-nav, .theme-toggle, .filter-bar, .pg-controls button { display: none !important; }
+  .container { max-width: 100%; padding: 0; }
+  details.tc { border-color: #ccc; background: #fff; }
+  details.tc > .body { display: block !important; }
+  details.tc summary::after { content: ''; }
+  h1, h2, h3 { color: #000; }
+  h2 { border-bottom: 1px solid #666; }
+  .badge { border: 1px solid #999; color: #000 !important; background: #eee !important; }
+  pre, code { background: #f4f4f4 !important; color: #000 !important; border-color: #ccc !important; }
+  .diagram svg { border-color: #999; background: #fff; }
+  table, tr, td, th { page-break-inside: avoid; }
+  thead th { background: #eee !important; color: #000 !important; }
+  a { color: #000; text-decoration: underline; }
+}
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle" type="button" aria-label="Theme (click to cycle: system, light, dark)" title="Theme -- click to cycle">
+  <svg data-theme-icon="system" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  <svg data-theme-icon="light" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  <svg data-theme-icon="dark" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+</button>
+
+<nav class="side-nav" aria-label="Plan navigation">
+  <div class="section-nav" aria-label="Sections">
+    <div class="group-label">On this page</div>
+    <a href="#playground">1. Interactive Playground</a>
+    <a href="#summary">2. Progress &amp; Filters</a>
+    <a href="#cat-anchor">3. Anchor &amp; Re-anchor</a>
+    <a href="#cat-crud">4. CRUD</a>
+    <a href="#cat-revise">5. Revise Intent</a>
+    <a href="#cat-resolve">6. Resolve / Delete</a>
+    <a href="#cat-sse">7. SSE Stream</a>
+    <a href="#cat-security">8. Security</a>
+    <a href="#cat-a11y">9. Accessibility</a>
+    <a href="#cat-rate">10. Rate Limiting</a>
+    <a href="#cat-offline">11. Offline / Draft</a>
+    <a href="#cross">12. Cross-cutting Battery</a>
+    <a href="#trace">13. Traceability Appendix</a>
+  </div>
+</nav>
+
+<main class="container">
+<nav class="plan-tabs" aria-label="Plan documents">
+  <a href="design.html">Design</a>
+  <a href="test-plan.html">Test Plan</a>
+  <a href="state-machine.html">State Machine</a>
+  <a href="test-cases.html" class="active" aria-current="page">Test Cases</a>
+  <a href="implementation-plan.html">Implementation</a>
+</nav>
+
+<h1>Test Cases: built-in-comment-ui</h1>
+<p class="meta">
+  Scenario: <code>built-in-comment-ui</code> &middot; 26 cases across 9 categories &middot;
+  <span class="badge badge-red">17 P0</span>
+  <span class="badge badge-yellow">9 P1</span>
+  <span class="badge badge-gray">0 P2</span>
+</p>
+
+<!-- ================= 1. PLAYGROUND ================= -->
+<h2 id="playground">1. Interactive Playground</h2>
+<p>Exercise the composer trigger without a backend. Change <code>role</code> / <code>panel</code> / <code>intent</code>, select text in the mock doc, and copy the payload the client would POST to <code>/api/comments/:scenario/:doc</code> (see <a href="design.html#api-design">Design &sect;5</a>).</p>
+
+<div class="playground" role="region" aria-label="Comment UI playground">
+  <div class="pg-grid">
+    <div class="pg-doc" id="pgDoc">
+      <p data-section-id="sec-pg-exec">The author flow ends when the server appends the JSONL line and returns <code>201</code>. The <code>author</code> value is stamped server-side from <code>req.user.name</code>; the client cannot set it.</p>
+      <p data-section-id="sec-pg-anchor">Anchors use <code>prefix + exact + suffix</code> inside a stable <code>sec-&lt;hex&gt;</code> section id so they survive regen. A three-tier cascade (exact, exact-in-section, fuzzy) picks the best hold; leftovers become orphans.</p>
+    </div>
+    <aside class="pg-sidebar" id="pgSidebar" aria-label="Mock comment sidebar">
+      <div class="pg-head">Comments <span id="pgCount" style="color:var(--accent)">(0)</span></div>
+      <div class="pg-empty">Select text and submit from the composer preview to seed a thread.</div>
+    </aside>
+  </div>
+
+  <div class="pg-controls" aria-label="Playground toggles">
+    <fieldset><legend>Role</legend>
+      <label><input type="radio" name="pgRole" value="reviewer" checked><span>reviewer</span></label>
+      <label><input type="radio" name="pgRole" value="host"><span>host</span></label>
+    </fieldset>
+    <fieldset><legend>Panel</legend>
+      <label><input type="radio" name="pgPanel" value="closed" checked><span>closed</span></label>
+      <label><input type="radio" name="pgPanel" value="open"><span>open</span></label>
+    </fieldset>
+    <fieldset><legend>Intent</legend>
+      <label><input type="radio" name="pgIntent" value="comment" checked><span>comment</span></label>
+      <label><input type="radio" name="pgIntent" value="revise" id="pgIntentRevise"><span>revise</span></label>
+    </fieldset>
+  </div>
+
+  <div class="pg-expected" id="pgExpected">Select any text in the doc above, then choose a role/panel/intent — the expected composer behavior updates here.</div>
+
+  <div class="pg-payload">
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.4rem;">
+      <strong style="font-size:0.84rem;">POST body preview</strong>
+      <button type="button" id="pgCopy">Copy payload</button>
+      <span id="pgCopied" style="color:var(--green);font-size:0.8rem;display:none;">Copied.</span>
+    </div>
+    <pre id="pgPayload">// select text above to build a payload</pre>
+  </div>
+
+  <div class="diagram">
+    <svg viewBox="0 0 760 230" role="img" aria-labelledby="pg-svg-t pg-svg-d" preserveAspectRatio="xMidYMid meet" width="760" height="230">
+      <title id="pg-svg-t">Playground wireframe</title>
+      <desc id="pg-svg-d">Doc column left with two paragraphs carrying data-section-id; floating Comment pill at selection end; right sliding panel with composer fields; role/panel/intent toggles below.</desc>
+      <rect x="8" y="8" width="744" height="214" rx="6" fill="var(--svg-bg2)" stroke="var(--svg-border)"/>
+      <rect x="24" y="24" width="420" height="150" rx="5" fill="var(--svg-bg)" stroke="var(--svg-border)"/>
+      <text x="36" y="46" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">paragraph [data-section-id="sec-pg-exec"]</text>
+      <rect x="36" y="56" width="390" height="8" rx="2" fill="var(--svg-muted)" opacity="0.35"/>
+      <rect x="36" y="72" width="330" height="8" rx="2" fill="var(--svg-muted)" opacity="0.35"/>
+      <rect x="140" y="72" width="120" height="8" rx="2" fill="var(--accent)" opacity="0.55"/>
+      <rect x="36" y="104" width="390" height="8" rx="2" fill="var(--svg-muted)" opacity="0.35"/>
+      <rect x="36" y="120" width="280" height="8" rx="2" fill="var(--svg-muted)" opacity="0.35"/>
+      <rect x="240" y="76" width="90" height="20" rx="10" fill="var(--accent)"/>
+      <text x="285" y="90" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="10" font-weight="600">Comment</text>
+      <rect x="464" y="24" width="272" height="190" rx="5" fill="var(--svg-bg)" stroke="var(--accent)" stroke-width="1.5"/>
+      <text x="476" y="44" fill="var(--svg-text)" font-family="sans-serif" font-size="11" font-weight="700">Composer</text>
+      <text x="476" y="62" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">referencing: "server-side from req.user"</text>
+      <rect x="476" y="72" width="248" height="60" rx="4" fill="var(--svg-bg2)" stroke="var(--svg-border)"/>
+      <text x="486" y="92" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">Type your comment...</text>
+      <rect x="476" y="144" width="96" height="22" rx="4" fill="var(--accent)"/>
+      <text x="524" y="159" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="10" font-weight="600">Post comment</text>
+      <rect x="580" y="144" width="120" height="22" rx="4" fill="var(--svg-bg2)" stroke="var(--purple)" stroke-dasharray="4,2"/>
+      <text x="640" y="159" text-anchor="middle" fill="var(--purple)" font-family="sans-serif" font-size="10" font-weight="600">Request update</text>
+      <text x="476" y="186" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">Ctrl+Enter submit &middot; Ctrl+Shift+Enter revise (host)</text>
+      <text x="476" y="202" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">Esc closes &middot; focus returns to selection</text>
+    </svg>
+    <div class="caption">Figure 1. Playground wireframe &mdash; mock doc, floating Comment pill, composer side-panel, host-only Request-update button.</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var doc = document.getElementById('pgDoc');
+  var payloadEl = document.getElementById('pgPayload');
+  var expectedEl = document.getElementById('pgExpected');
+  var reviseInput = document.getElementById('pgIntentRevise');
+  var intentCommentInput = document.querySelector('input[name="pgIntent"][value="comment"]');
+  function role(){return document.querySelector('input[name=pgRole]:checked').value;}
+  function panel(){return document.querySelector('input[name=pgPanel]:checked').value;}
+  function intent(){return document.querySelector('input[name=pgIntent]:checked').value;}
+  function syncGuards(){
+    var isHost = role() === 'host';
+    reviseInput.disabled = !isHost;
+    if (!isHost && reviseInput.checked) { intentCommentInput.checked = true; }
+    updateExpected();
+    if (last) buildPayload(last);
+  }
+  var last = null;
+  function captureSelection(){
+    var sel = window.getSelection();
+    if (!sel || sel.isCollapsed) return;
+    var r = sel.getRangeAt(0);
+    var node = r.commonAncestorContainer;
+    var p = node.nodeType === 3 ? node.parentElement : node;
+    while (p && !(p.dataset && p.dataset.sectionId) && p !== doc) p = p.parentElement;
+    if (!p || !p.dataset || !p.dataset.sectionId) return;
+    var text = p.textContent;
+    var exact = sel.toString();
+    if (exact.length < 3) return;
+    var idx = text.indexOf(exact);
+    if (idx < 0) return;
+    last = {
+      anchor: {
+        sectionId: p.dataset.sectionId,
+        prefix: text.slice(Math.max(0, idx - 24), idx),
+        exact: exact,
+        suffix: text.slice(idx + exact.length, idx + exact.length + 24)
+      }
+    };
+    buildPayload(last);
+  }
+  function buildPayload(ctx){
+    var body = {
+      anchor: ctx.anchor,
+      body: 'plain text, 1-4000 chars',
+      intent: intent(),
+      threadId: null,
+      replyTo: null
+    };
+    payloadEl.textContent = JSON.stringify(body, null, 2);
+  }
+  function updateExpected(){
+    var r = role(), p = panel(), i = intent();
+    var lines = [];
+    lines.push('role=' + r + '; panel=' + p + '; intent=' + i + '.');
+    if (p === 'closed') {
+      lines.push('Selecting text shows the floating Comment pill; Ctrl+Alt+M opens the panel.');
+    } else {
+      lines.push('Panel is open; composer is focused and ready to submit on Ctrl+Enter.');
+    }
+    if (i === 'revise' && r === 'host') {
+      lines.push('Submit flags intent=revise; server requires host role and appends reviseStatus=pending.');
+    } else if (r === 'reviewer') {
+      lines.push('Request-update button is hidden; any client intent=revise is rejected 403 at the server.');
+    } else {
+      lines.push('Plain comment path; appends a root JSONL event and returns 201.');
+    }
+    expectedEl.textContent = lines.join(' ');
+  }
+  document.addEventListener('selectionchange', function(){
+    if (!window.getSelection().isCollapsed) captureSelection();
+  });
+  document.querySelectorAll('.pg-controls input').forEach(function(el){
+    el.addEventListener('change', syncGuards);
+  });
+  document.getElementById('pgCopy').addEventListener('click', function(){
+    var txt = payloadEl.textContent;
+    if (navigator.clipboard) navigator.clipboard.writeText(txt);
+    var ok = document.getElementById('pgCopied');
+    ok.style.display = 'inline'; setTimeout(function(){ok.style.display='none';}, 1400);
+  });
+  syncGuards();
+})();
+</script>
+
+<!-- ================= 2. PROGRESS & FILTERS ================= -->
+<h2 id="summary">2. Progress &amp; Filters</h2>
+<div class="summary-grid">
+  <div class="summary-card"><div class="summary-value" id="totalCount">26</div><div class="summary-label">Total</div></div>
+  <div class="summary-card"><div class="summary-value" id="doneCount" style="color:var(--green)">0</div><div class="summary-label">Done</div></div>
+  <div class="summary-card"><div class="summary-value" id="remainCount" style="color:var(--yellow)">26</div><div class="summary-label">Remaining</div></div>
+</div>
+<div class="filter-bar">
+  <select id="filterCat">
+    <option value="">All categories</option>
+    <option value="ANCHOR">Anchor</option>
+    <option value="CRUD">CRUD</option>
+    <option value="REVISE">Revise</option>
+    <option value="RESOLVE">Resolve/Delete</option>
+    <option value="SSE">SSE</option>
+    <option value="SEC">Security</option>
+    <option value="A11Y">Accessibility</option>
+    <option value="RATE">Rate Limit</option>
+    <option value="OFFLINE">Offline</option>
+  </select>
+  <select id="filterPrio">
+    <option value="">All priorities</option>
+    <option value="P0">P0</option>
+    <option value="P1">P1</option>
+    <option value="P2">P2</option>
+  </select>
+  <select id="filterStatus">
+    <option value="">All statuses</option>
+    <option value="done">Done</option>
+    <option value="open">Open</option>
+  </select>
+  <input type="search" id="filterSearch" placeholder="Search title or ID..." aria-label="Search">
+  <button type="button" id="filterClear">Clear</button>
+  <button type="button" id="expandAll">Expand</button>
+  <button type="button" id="collapseAll">Collapse</button>
+</div>
+
+<!-- ================= 3. ANCHOR & RE-ANCHOR ================= -->
+<h2 id="cat-anchor">3. Anchor &amp; Re-anchor <span class="badge badge-blue">4 TCs</span></h2>
+<div class="diagram">
+  <svg viewBox="0 0 400 200" role="img" aria-labelledby="cat-anchor-t cat-anchor-d" width="400" height="200">
+    <title id="cat-anchor-t">Anchor re-anchor cascade</title>
+    <desc id="cat-anchor-d">Three-tier cascade: exact match in same section; then fuzzy match in same section; else orphan.</desc>
+    <rect x="4" y="4" width="392" height="192" rx="5" fill="var(--svg-bg2)" stroke="var(--svg-border)"/>
+    <rect x="20" y="24" width="110" height="40" rx="6" fill="var(--svg-bg)" stroke="var(--accent)"/>
+    <text x="75" y="49" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="11" font-weight="600">tier A: exact</text>
+    <rect x="145" y="24" width="110" height="40" rx="6" fill="var(--svg-bg)" stroke="var(--accent)"/>
+    <text x="200" y="49" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="11" font-weight="600">tier B: section</text>
+    <rect x="270" y="24" width="110" height="40" rx="6" fill="var(--svg-bg)" stroke="var(--yellow)"/>
+    <text x="325" y="49" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="11" font-weight="600">tier C: fuzzy</text>
+    <rect x="145" y="110" width="110" height="40" rx="6" fill="var(--svg-bg)" stroke="var(--green)"/>
+    <text x="200" y="135" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="11" font-weight="600">anchored</text>
+    <rect x="270" y="110" width="110" height="40" rx="6" fill="var(--svg-bg)" stroke="var(--red)" stroke-dasharray="4,2"/>
+    <text x="325" y="135" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="11" font-weight="600">orphaned</text>
+    <line x1="75" y1="64" x2="185" y2="110" stroke="var(--green)" stroke-width="1.5"/>
+    <line x1="200" y1="64" x2="200" y2="110" stroke="var(--green)" stroke-width="1.5"/>
+    <line x1="325" y1="64" x2="215" y2="110" stroke="var(--yellow)" stroke-width="1.5"/>
+    <line x1="325" y1="64" x2="325" y2="110" stroke="var(--red)" stroke-width="1.5" stroke-dasharray="4,2"/>
+    <text x="75" y="180" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">prefix+exact+suffix hit</text>
+    <text x="200" y="180" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">migratedFrom recorded</text>
+    <text x="325" y="180" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">needs reattach or archive</text>
+  </svg>
+  <div class="caption">Figure 2. Three-tier re-anchor cascade (Design &sect;2 principle 3; state-machine &sect;5).</div>
+</div>
+
+<details class="tc" data-id="TC-ANCHOR-001" data-cat="ANCHOR" data-priority="P0">
+  <summary><input type="checkbox"><span class="badge badge-red">P0</span><span class="tc-id">TC-ANCHOR-001</span><span class="tc-title">Post stores sectionId + prefix+exact+suffix</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> <a href="design.html#ac-list">AC-1</a>, <a href="test-plan.html#e2e-1">E2E-1</a>, state <code>draft &rarr; posted</code>.</p>
+    <p><strong>Pre:</strong> logged-in reviewer; doc has &ge;2 sections with <code>data-section-id</code>.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>Select 15 chars inside a section</td><td>Floating Comment pill within 150ms</td></tr>
+      <tr><td>Click pill, type body, Ctrl+Enter</td><td>POST 201; JSONL line appended</td></tr>
+      <tr><td>Read back JSONL line</td><td><code>anchor.sectionId</code> = enclosing <code>[data-section-id]</code>; <code>exact</code> equals selection</td></tr>
+      <tr><td>Locate <code>prefix+exact+suffix</code> in section text</td><td>Uniquely identifies one span</td></tr>
+    </tbody></table>
+<pre><code>{"id":"cmt_a1b2c3","anchor":{"sectionId":"sec-4f3a...","prefix":"...","exact":"...","suffix":"..."},"body":"...","resolved":false}</code></pre>
+    <p class="neg"><strong>Negative:</strong> selection spans two sections &rarr; pill suppressed; no POST issued.</p>
+  </div>
+</details>
+
+<details class="tc" data-id="TC-ANCHOR-002" data-cat="ANCHOR" data-priority="P0">
+  <summary><input type="checkbox"><span class="badge badge-red">P0</span><span class="tc-id">TC-ANCHOR-002</span><span class="tc-title">Re-anchor tier A: exact match after &le;20% regen churn</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> <a href="design.html#ac-list">AC-3</a>, <a href="test-plan.html#e2e-4">E2E-4</a>, state-machine &sect;5 <code>scanning &rarr; anchored</code>.</p>
+    <p><strong>Pre:</strong> 10 comments across 3 sections; doc regenerated with &lt;20% churn, section IDs preserved.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>Regenerate doc, reload</td><td>Cascade runs tier A per comment</td></tr>
+      <tr><td>Inspect sidebar</td><td>&ge;90% comments show anchored state; highlights match</td></tr>
+      <tr><td>Check stderr log</td><td>Per-hit line <code>REANCHOR tier=A id=cmt_...</code></td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> tier A fails when section body rewritten character-level &rarr; falls through to tier B/C.</p>
+  </div>
+</details>
+
+<details class="tc" data-id="TC-ANCHOR-003" data-cat="ANCHOR" data-priority="P0">
+  <summary><input type="checkbox"><span class="badge badge-red">P0</span><span class="tc-id">TC-ANCHOR-003</span><span class="tc-title">Re-anchor tier B: exact text elsewhere in same section</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> AC-3, state-machine &sect;5 <code>tryB &rarr; anchored</code> with <code>migratedFrom</code>.</p>
+    <p><strong>Pre:</strong> comment anchored at offset 120; regen moves the exact text to offset 60 in the same section.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>Reload after regen</td><td>Tier A fails, tier B succeeds</td></tr>
+      <tr><td>Inspect JSONL</td><td>New <code>reanchor</code> event with <code>migratedFrom: {prefix,suffix}</code></td></tr>
+      <tr><td>Highlight position</td><td>Re-painted at new offset</td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> duplicate matches within section &rarr; tier B refuses, falls to tier C.</p>
+  </div>
+</details>
+
+<details class="tc" data-id="TC-ANCHOR-004" data-cat="ANCHOR" data-priority="P1">
+  <summary><input type="checkbox"><span class="badge badge-yellow">P1</span><span class="tc-id">TC-ANCHOR-004</span><span class="tc-title">Orphan marked when cascade &lt;threshold and surfaced with original quote</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> <a href="design.html#ac-list">AC-9</a>, <a href="test-plan.html#e2e-14">E2E-14</a>, state <code>anchored &rarr; orphan</code>.</p>
+    <p><strong>Pre:</strong> section rewritten beyond fuzzy threshold (Jaccard &lt;0.72 or Levenshtein &lt;0.85).</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>Reload doc</td><td>Comment flagged <code>orphaned</code>; <code>reanchor</code> event appended</td></tr>
+      <tr><td>Open sidebar</td><td>&ldquo;Needs reattachment (N)&rdquo; pinned at top with amber dot</td></tr>
+      <tr><td>Click orphan card</td><td>Original <code>exact</code> shown as blockquote; Reattach/Archive actions visible</td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> tier C succeeds at threshold exactly &rarr; comment stays anchored, not orphaned.</p>
+  </div>
+</details>
+
+<!-- ================= 4. CRUD ================= -->
+<h2 id="cat-crud">4. CRUD <span class="badge badge-blue">4 TCs</span></h2>
+<div class="diagram">
+  <svg viewBox="0 0 400 180" role="img" aria-labelledby="cat-crud-t cat-crud-d" width="400" height="180">
+    <title id="cat-crud-t">Comment CRUD routes</title>
+    <desc id="cat-crud-d">GET list, POST create, PATCH edit, DELETE soft-delete — all gated by auth and rate limit.</desc>
+    <rect x="4" y="4" width="392" height="172" rx="5" fill="var(--svg-bg2)" stroke="var(--svg-border)"/>
+    <text x="200" y="26" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="12" font-weight="600">/api/comments/:scenario/:doc[/:id]</text>
+    <rect x="20" y="50" width="80" height="36" rx="6" fill="var(--svg-bg)" stroke="var(--green)"/><text x="60" y="72" text-anchor="middle" font-family="sans-serif" font-size="11">GET</text>
+    <rect x="110" y="50" width="80" height="36" rx="6" fill="var(--svg-bg)" stroke="var(--accent)"/><text x="150" y="72" text-anchor="middle" font-family="sans-serif" font-size="11">POST</text>
+    <rect x="200" y="50" width="80" height="36" rx="6" fill="var(--svg-bg)" stroke="var(--orange)"/><text x="240" y="72" text-anchor="middle" font-family="sans-serif" font-size="11">PATCH</text>
+    <rect x="290" y="50" width="80" height="36" rx="6" fill="var(--svg-bg)" stroke="var(--red)"/><text x="330" y="72" text-anchor="middle" font-family="sans-serif" font-size="11">DELETE</text>
+    <text x="60" y="108" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">list nested</text>
+    <text x="150" y="108" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">append + 201</text>
+    <text x="240" y="108" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">edit window 10m</text>
+    <text x="330" y="108" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">soft tombstone</text>
+    <rect x="60" y="130" width="280" height="32" rx="6" fill="var(--svg-bg)" stroke="var(--accent)" stroke-dasharray="4,2"/>
+    <text x="200" y="150" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="10">append-only JSONL: last event per id wins</text>
+  </svg>
+  <div class="caption">Figure 3. CRUD surface &mdash; every mutation appends; reads fold the event log.</div>
+</div>
+
+<details class="tc" data-id="TC-CRUD-001" data-cat="CRUD" data-priority="P0">
+  <summary><input type="checkbox"><span class="badge badge-red">P0</span><span class="tc-id">TC-CRUD-001</span><span class="tc-title">POST root comment appends JSONL + returns 201 with server-stamped fields</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> AC-1, AC-2, <a href="test-plan.html#e2e-1">E2E-1</a>, state <code>draft &rarr; posted</code>.</p>
+    <p><strong>Pre:</strong> logged-in session <code>alice</code>; empty JSONL for doc.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>POST with valid anchor + 40-char body + client-supplied <code>author:"evil"</code></td><td>201; response <code>author</code> = <code>"alice"</code> (client field ignored)</td></tr>
+      <tr><td>Tail <code>.comments/&lt;doc&gt;.jsonl</code></td><td>One new line; <code>id</code>, <code>createdAt</code>, <code>threadId=id</code> set server-side</td></tr>
+      <tr><td>Reload; GET list</td><td>Returned array includes the new root; <code>replies:[]</code></td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> body 4001 chars &rarr; 400 <code>BAD_REQUEST</code> + message <em>"body exceeds 4000 char limit"</em>.</p>
+  </div>
+</details>
+
+<details class="tc" data-id="TC-CRUD-002" data-cat="CRUD" data-priority="P0">
+  <summary><input type="checkbox"><span class="badge badge-red">P0</span><span class="tc-id">TC-CRUD-002</span><span class="tc-title">GET list returns nested thread + meta counts</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> UC-2, state-machine &sect;3 fold-over-events.</p>
+    <p><strong>Pre:</strong> JSONL with 3 roots, 2 replies, 1 resolved, 1 orphan flag.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>GET <code>/api/comments/:scenario/:doc</code></td><td>200; <code>comments[]</code> sorted by <code>createdAt</code> asc</td></tr>
+      <tr><td>Inspect replies</td><td>Nested under parent with shared <code>threadId</code></td></tr>
+      <tr><td>Inspect <code>meta</code></td><td><code>{total:3, resolved:1, orphaned:1}</code> matches fold</td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> invalid scenario segment <code>../x</code> &rarr; 400 <code>BAD_REQUEST</code> before any disk I/O.</p>
+  </div>
+</details>
+
+<details class="tc" data-id="TC-CRUD-003" data-cat="CRUD" data-priority="P0">
+  <summary><input type="checkbox"><span class="badge badge-red">P0</span><span class="tc-id">TC-CRUD-003</span><span class="tc-title">PATCH body by author within 10-min edit window</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> <a href="design.html#ac-list">AC-11</a>, <a href="test-plan.html#e2e-13">E2E-13</a>, state <code>posted &rarr; edited</code>.</p>
+    <p><strong>Pre:</strong> comment posted &lt;10 min ago by <code>alice</code>.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>PATCH <code>{body:"updated"}</code> as <code>alice</code></td><td>200; response <code>editedAt</code> set; prior event preserved on disk</td></tr>
+      <tr><td>GET list</td><td>Body reflects latest; history re-readable by replay</td></tr>
+      <tr><td>Simulate t=10m01s then PATCH</td><td>403 <code>FORBIDDEN</code> &ndash; <em>"edit_window_expired"</em></td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> author mismatch &rarr; 403 <code>FORBIDDEN</code> <em>"Only the author can edit this comment"</em>.</p>
+  </div>
+</details>
+
+<details class="tc" data-id="TC-CRUD-004" data-cat="CRUD" data-priority="P1">
+  <summary><input type="checkbox"><span class="badge badge-yellow">P1</span><span class="tc-id">TC-CRUD-004</span><span class="tc-title">POST reply inherits threadId from parent</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> UC-2, design &sect;3 data-model.</p>
+    <p><strong>Pre:</strong> root comment <code>cmt_abc</code> exists.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>POST with <code>replyTo:"cmt_abc"</code>, no anchor</td><td>201; <code>threadId</code> derived from parent's <code>threadId</code></td></tr>
+      <tr><td>GET list</td><td>Reply nested inside parent's <code>replies[]</code>, not top-level</td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> <code>replyTo</code> not found &rarr; 404 <code>NOT_FOUND</code>.</p>
+  </div>
+</details>
+
+<!-- ================= 5. REVISE INTENT ================= -->
+<h2 id="cat-revise">5. Revise Intent <span class="badge badge-blue">4 TCs</span></h2>
+<div class="diagram">
+  <svg viewBox="0 0 400 200" role="img" aria-labelledby="cat-revise-t cat-revise-d" width="400" height="200">
+    <title id="cat-revise-t">Revise-intent lifecycle</title>
+    <desc id="cat-revise-d">Pending to dispatched to proposed to accepted or rejected; host-only transitions guard each step.</desc>
+    <rect x="4" y="4" width="392" height="192" rx="5" fill="var(--svg-bg2)" stroke="var(--svg-border)"/>
+    <rect x="16" y="70" width="76" height="38" rx="6" fill="var(--svg-bg)" stroke="var(--accent)"/><text x="54" y="93" text-anchor="middle" font-family="sans-serif" font-size="11">pending</text>
+    <rect x="108" y="70" width="92" height="38" rx="6" fill="var(--svg-bg)" stroke="var(--accent)"/><text x="154" y="93" text-anchor="middle" font-family="sans-serif" font-size="11">dispatched</text>
+    <rect x="216" y="70" width="80" height="38" rx="6" fill="var(--svg-bg)" stroke="var(--accent)"/><text x="256" y="93" text-anchor="middle" font-family="sans-serif" font-size="11">proposed</text>
+    <rect x="310" y="30" width="76" height="34" rx="6" fill="var(--svg-bg)" stroke="var(--green)"/><text x="348" y="51" text-anchor="middle" font-family="sans-serif" font-size="11">accepted</text>
+    <rect x="310" y="114" width="76" height="34" rx="6" fill="var(--svg-bg)" stroke="var(--red)"/><text x="348" y="135" text-anchor="middle" font-family="sans-serif" font-size="11">rejected</text>
+    <line x1="92" y1="89" x2="108" y2="89" stroke="var(--accent)" stroke-width="1.5"/>
+    <line x1="200" y1="89" x2="216" y2="89" stroke="var(--accent)" stroke-width="1.5"/>
+    <line x1="296" y1="85" x2="310" y2="55" stroke="var(--green)" stroke-width="1.5"/>
+    <line x1="296" y1="95" x2="310" y2="125" stroke="var(--red)" stroke-width="1.5"/>
+    <text x="100" y="65" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">dispatch</text>
+    <text x="208" y="65" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">agent diff</text>
+    <text x="340" y="84" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">apply diff</text>
+    <text x="16" y="170" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">Host-only transitions; reviewer POST intent=revise returns 403 BLOCKED before any write.</text>
+  </svg>
+  <div class="caption">Figure 4. Revise-intent lifecycle (State-machine &sect;4).</div>
+</div>
+
+<details class="tc" data-id="TC-REVISE-001" data-cat="REVISE" data-priority="P0">
+  <summary><input type="checkbox"><span class="badge badge-red">P0</span><span class="tc-id">TC-REVISE-001</span><span class="tc-title">Host POST intent=revise flips to pending (passive mode)</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> UC-13, <a href="test-plan.html#e2e-5">E2E-5</a>, state-machine &sect;4 transition <code>init &rarr; pending</code>.</p>
+    <p><strong>Pre:</strong> host loopback session; <code>.comment-config.json</code> absent (default passive).</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>POST body with <code>intent:"revise"</code></td><td>201; <code>reviseStatus:"pending"</code> on returned object</td></tr>
+      <tr><td>UI card</td><td>Chip <em>Pending dispatch</em>; <em>Dispatch now</em> button visible</td></tr>
+      <tr><td>Inspect JSONL</td><td>Single event line with <code>intent:"revise", reviseStatus:"pending"</code></td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> reviewer session same payload &rarr; 403 <code>FORBIDDEN</code> <em>"revise_requires_host_role"</em>; stderr logs <code>BLOCKED intent=revise sid=...</code>.</p>
+  </div>
+</details>
+
+<details class="tc" data-id="TC-REVISE-002" data-cat="REVISE" data-priority="P0">
+  <summary><input type="checkbox"><span class="badge badge-red">P0</span><span class="tc-id">TC-REVISE-002</span><span class="tc-title">Dispatch-now flips pending to dispatched via revise-dispatch</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> UC-13 alt, state-machine &sect;4 <code>pending &rarr; dispatched</code>.</p>
+    <p><strong>Pre:</strong> revise comment in <code>pending</code>.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>POST <code>/:id/revise-dispatch</code> as host</td><td>202; append <code>reviseStatus:"dispatched"</code> event</td></tr>
+      <tr><td>Check SSE stream</td><td>Receives <code>comment</code> event with <code>op:"patch"</code></td></tr>
+      <tr><td>Re-POST same route</td><td>409 or no-op; no duplicate event (guard: current=<code>pending</code>)</td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> reviewer POST dispatch &rarr; 403 <code>FORBIDDEN</code>; no event written.</p>
+  </div>
+</details>
+
+<details class="tc" data-id="TC-REVISE-003" data-cat="REVISE" data-priority="P0">
+  <summary><input type="checkbox"><span class="badge badge-red">P0</span><span class="tc-id">TC-REVISE-003</span><span class="tc-title">Proposal accept applies diff + flips resolved=true</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> UC-15, state-machine &sect;4 <code>proposed &rarr; accepted</code>.</p>
+    <p><strong>Pre:</strong> <code>reviseStatus:"proposed"</code> with <code>reviseProposalRef</code> pointing to valid diff; anchor still matches.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>POST <code>/:id/revise-accept</code></td><td>200; diff applied to doc; <code>reviseStatus:"accepted"</code> + <code>resolved:true</code> appended</td></tr>
+      <tr><td>Re-render doc</td><td>Target span reflects patched text</td></tr>
+      <tr><td>SSE</td><td>Two events in order: <code>accepted</code>, <code>resolved</code></td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> anchor drifted &rarr; 409 <code>CONFLICT</code>; comment downgraded to <code>orphaned</code> with proposal retained; doc untouched.</p>
+  </div>
+</details>
+
+<details class="tc" data-id="TC-REVISE-004" data-cat="REVISE" data-priority="P1">
+  <summary><input type="checkbox"><span class="badge badge-yellow">P1</span><span class="tc-id">TC-REVISE-004</span><span class="tc-title">Reject appends rejected, doc untouched, card stays open</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> UC-15 alt, state <code>proposed &rarr; rejected</code>.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>POST <code>/:id/revise-reject</code></td><td>200; <code>reviseStatus:"rejected"</code> appended</td></tr>
+      <tr><td>Doc content</td><td>Unchanged</td></tr>
+      <tr><td>UI</td><td>Card remains open, resolved=false; author can reply in-thread</td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> reject from <code>pending</code> (not yet <code>proposed</code>) &rarr; 409 guard-fails; no write.</p>
+  </div>
+</details>
+
+<!-- ================= 6. RESOLVE / DELETE ================= -->
+<h2 id="cat-resolve">6. Resolve / Delete <span class="badge badge-blue">3 TCs</span></h2>
+<div class="diagram">
+  <svg viewBox="0 0 400 170" role="img" aria-labelledby="cat-resolve-t cat-resolve-d" width="400" height="170">
+    <title id="cat-resolve-t">Resolve and delete transitions</title>
+    <desc id="cat-resolve-d">Posted toggles resolved and unresolved; any state can transition to deleted which is terminal.</desc>
+    <rect x="4" y="4" width="392" height="162" rx="5" fill="var(--svg-bg2)" stroke="var(--svg-border)"/>
+    <rect x="24" y="60" width="90" height="36" rx="6" fill="var(--svg-bg)" stroke="var(--green)"/><text x="69" y="82" text-anchor="middle" font-family="sans-serif" font-size="11">posted</text>
+    <rect x="150" y="26" width="100" height="36" rx="6" fill="var(--svg-bg)" stroke="var(--green)"/><text x="200" y="48" text-anchor="middle" font-family="sans-serif" font-size="11">resolved</text>
+    <rect x="150" y="96" width="100" height="36" rx="6" fill="var(--svg-bg)" stroke="var(--accent)"/><text x="200" y="118" text-anchor="middle" font-family="sans-serif" font-size="11">unresolved</text>
+    <rect x="290" y="60" width="86" height="36" rx="6" fill="var(--svg-bg)" stroke="var(--red)"/><text x="333" y="82" text-anchor="middle" font-family="sans-serif" font-size="11">deleted</text>
+    <line x1="114" y1="70" x2="150" y2="44" stroke="var(--accent)" stroke-width="1.5"/>
+    <line x1="150" y1="54" x2="114" y2="78" stroke="var(--accent)" stroke-width="1.5"/>
+    <line x1="250" y1="44" x2="260" y2="114" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="3,2"/>
+    <line x1="250" y1="114" x2="290" y2="78" stroke="var(--red)" stroke-width="1.5"/>
+    <line x1="114" y1="78" x2="290" y2="78" stroke="var(--red)" stroke-width="1.5" opacity="0.3"/>
+    <text x="120" y="150" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">Resolve guard depends on AC-4 decision (host-only vs any-auth).</text>
+  </svg>
+  <div class="caption">Figure 5. Resolve/unresolve/delete. Delete is terminal; resolve toggles append events.</div>
+</div>
+
+<details class="tc" data-id="TC-RESOLVE-001" data-cat="RESOLVE" data-priority="P0">
+  <summary><input type="checkbox"><span class="badge badge-red">P0</span><span class="tc-id">TC-RESOLVE-001</span><span class="tc-title">Host resolve appends event, 5s undo respected</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> <a href="design.html#ac-list">AC-4</a> (interim host-only), <a href="test-plan.html#e2e-2">E2E-2</a>, state <code>posted &rarr; resolved</code>.</p>
+    <p><strong>Pre:</strong> host session; unresolved thread exists.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>Click Resolve</td><td>5s undo toast; no PATCH yet</td></tr>
+      <tr><td>Let toast expire</td><td>PATCH <code>{resolved:true}</code>; 200; JSONL event appended</td></tr>
+      <tr><td>Click Undo within 5s</td><td>Toast cleared; no disk write</td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> reviewer attempts resolve while host-only guard active &rarr; 403 <code>FORBIDDEN</code>.</p>
+  </div>
+</details>
+
+<details class="tc" data-id="TC-RESOLVE-002" data-cat="RESOLVE" data-priority="P1">
+  <summary><input type="checkbox"><span class="badge badge-yellow">P1</span><span class="tc-id">TC-RESOLVE-002</span><span class="tc-title">Unresolve after resolve returns thread to open</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> state <code>resolved &rarr; unresolved</code>.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>Resolve thread, then click Unresolve</td><td>New event <code>{resolved:false}</code> appended</td></tr>
+      <tr><td>GET list <code>meta</code></td><td><code>resolved</code> count decrements</td></tr>
+      <tr><td>Sidebar</td><td>Thread re-surfaces in open list</td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> unresolve on already-unresolved thread &rarr; 200 no-op OR 409 guard-fails (picks current impl: no duplicate JSONL write).</p>
+  </div>
+</details>
+
+<details class="tc" data-id="TC-RESOLVE-003" data-cat="RESOLVE" data-priority="P0">
+  <summary><input type="checkbox"><span class="badge badge-red">P0</span><span class="tc-id">TC-RESOLVE-003</span><span class="tc-title">DELETE by author soft-deletes; body renders [deleted]</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> UC-5, state <code>posted &rarr; deleted</code> (terminal).</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>DELETE as author</td><td>204; tombstone event appended; prior body preserved on disk</td></tr>
+      <tr><td>GET list</td><td>Body reads <em>"[deleted]"</em>; <code>deleted:true</code></td></tr>
+      <tr><td>Subsequent PATCH/DELETE</td><td>409 &ndash; deleted is terminal</td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> non-author DELETE &rarr; 403 <code>FORBIDDEN</code> (host override may succeed &mdash; document in audit log).</p>
+  </div>
+</details>
+
+<!-- ================= 7. SSE STREAM ================= -->
+<h2 id="cat-sse">7. SSE Stream <span class="badge badge-blue">2 TCs</span></h2>
+<div class="diagram">
+  <svg viewBox="0 0 400 180" role="img" aria-labelledby="cat-sse-t cat-sse-d" width="400" height="180">
+    <title id="cat-sse-t">SSE client lifecycle</title>
+    <desc id="cat-sse-d">Connected streams events; on drop, retry with Last-Event-Id; backoff on repeated failure.</desc>
+    <rect x="4" y="4" width="392" height="172" rx="5" fill="var(--svg-bg2)" stroke="var(--svg-border)"/>
+    <rect x="16" y="72" width="92" height="38" rx="6" fill="var(--svg-bg)" stroke="var(--green)"/><text x="62" y="95" text-anchor="middle" font-family="sans-serif" font-size="11">connected</text>
+    <rect x="130" y="72" width="92" height="38" rx="6" fill="var(--svg-bg)" stroke="var(--yellow)"/><text x="176" y="95" text-anchor="middle" font-family="sans-serif" font-size="11">retrying</text>
+    <rect x="244" y="72" width="92" height="38" rx="6" fill="var(--svg-bg)" stroke="var(--red)"/><text x="290" y="95" text-anchor="middle" font-family="sans-serif" font-size="11">backoff</text>
+    <line x1="108" y1="91" x2="130" y2="91" stroke="var(--yellow)" stroke-width="1.5"/>
+    <line x1="222" y1="91" x2="244" y2="91" stroke="var(--red)" stroke-width="1.5"/>
+    <path d="M 222 80 Q 165 40 108 80" stroke="var(--green)" stroke-width="1.5" fill="none"/>
+    <text x="119" y="68" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">drop</text>
+    <text x="233" y="68" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">retry N exhausted</text>
+    <text x="164" y="42" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">resume w/ Last-Event-Id</text>
+    <text x="16" y="148" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">Ping every 30s keeps the devtunnel path warm; no missed mutations after recovery.</text>
+  </svg>
+  <div class="caption">Figure 6. SSE client states (State-machine &sect;7).</div>
+</div>
+
+<details class="tc" data-id="TC-SSE-001" data-cat="SSE" data-priority="P1">
+  <summary><input type="checkbox"><span class="badge badge-yellow">P1</span><span class="tc-id">TC-SSE-001</span><span class="tc-title">Broadcast reaches second tab within 500ms of POST</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> design &sect;5 SSE, state-machine &sect;7 <code>connected</code>.</p>
+    <p><strong>Pre:</strong> two tabs open on same doc; both subscribed.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>Tab A POSTs a comment</td><td>Tab B receives <code>event: comment</code> with <code>op:"create"</code></td></tr>
+      <tr><td>Measure latency</td><td>&le;500ms on localhost; &le;1.5s over devtunnel</td></tr>
+      <tr><td>Ping cadence</td><td><code>event: ping</code> received every 30s &plusmn;2s</td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> POST fails (500) &rarr; no SSE event emitted; tab B unchanged.</p>
+  </div>
+</details>
+
+<details class="tc" data-id="TC-SSE-002" data-cat="SSE" data-priority="P1">
+  <summary><input type="checkbox"><span class="badge badge-yellow">P1</span><span class="tc-id">TC-SSE-002</span><span class="tc-title">Reconnect after 15s flap, no missed events</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> <a href="test-plan.html#e2e-11">E2E-11</a>, state <code>connected &rarr; retrying &rarr; connected</code>.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>Toggle DevTools offline for 15s</td><td>Client enters <code>retrying</code>; banner shows reconnecting</td></tr>
+      <tr><td>While offline, Tab A POSTs 3 comments</td><td>Events queue server-side for this client slot</td></tr>
+      <tr><td>Restore network</td><td>Client resumes with <code>Last-Event-Id</code>; 3 events replay in order</td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> replay protocol not yet specified &mdash; [ ] TODO: pin <code>Last-Event-Id</code> semantics with backend dev before sign-off.</p>
+  </div>
+</details>
+
+<!-- ================= 8. SECURITY ================= -->
+<h2 id="cat-security">8. Security <span class="badge badge-blue">3 TCs</span></h2>
+<div class="diagram">
+  <svg viewBox="0 0 400 180" role="img" aria-labelledby="cat-sec-t cat-sec-d" width="400" height="180">
+    <title id="cat-sec-t">Security checks at the route layer</title>
+    <desc id="cat-sec-d">Path regex, role guard, and XSS escape all fire before any disk I/O or render.</desc>
+    <rect x="4" y="4" width="392" height="172" rx="5" fill="var(--svg-bg2)" stroke="var(--svg-border)"/>
+    <rect x="20" y="24" width="100" height="36" rx="6" fill="var(--svg-bg)" stroke="var(--red)"/><text x="70" y="47" text-anchor="middle" font-family="sans-serif" font-size="11">path regex</text>
+    <rect x="150" y="24" width="100" height="36" rx="6" fill="var(--svg-bg)" stroke="var(--red)"/><text x="200" y="47" text-anchor="middle" font-family="sans-serif" font-size="11">role guard</text>
+    <rect x="280" y="24" width="100" height="36" rx="6" fill="var(--svg-bg)" stroke="var(--red)"/><text x="330" y="47" text-anchor="middle" font-family="sans-serif" font-size="11">XSS escape</text>
+    <line x1="70" y1="60" x2="70" y2="100" stroke="var(--red)" stroke-width="1.5"/>
+    <line x1="200" y1="60" x2="200" y2="100" stroke="var(--red)" stroke-width="1.5"/>
+    <line x1="330" y1="60" x2="330" y2="100" stroke="var(--red)" stroke-width="1.5"/>
+    <rect x="20" y="108" width="360" height="32" rx="6" fill="var(--svg-bg)" stroke="var(--accent)"/>
+    <text x="200" y="129" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="600">reject 400/403 &middot; stderr audit line &middot; zero disk I/O</text>
+    <text x="20" y="162" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">Resolved path must start with workspaceRootPath + sep + 'plans' + sep (Design &sect;9).</text>
+  </svg>
+  <div class="caption">Figure 7. Security pipeline &mdash; every mutation passes all three gates.</div>
+</div>
+
+<details class="tc" data-id="TC-SEC-001" data-cat="SEC" data-priority="P0">
+  <summary><input type="checkbox"><span class="badge badge-red">P0</span><span class="tc-id">TC-SEC-001</span><span class="tc-title">Path traversal rejected before disk I/O</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> <a href="design.html#ac-list">AC-5</a>, <a href="test-plan.html#e2e-8">E2E-8</a>.</p>
+    <p><strong>Pre:</strong> authenticated reviewer; <code>strace</code>/fs audit capturing opens.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>POST to <code>/api/comments/../../etc/passwd/doc</code></td><td>400 <code>BAD_REQUEST</code>; stderr <code>SECURITY: path regex failed</code></td></tr>
+      <tr><td>POST with scenario <code>plan%2F..</code></td><td>400; URL decoded BEFORE regex check</td></tr>
+      <tr><td>Audit fs opens</td><td>Zero writes under <code>/etc</code> or outside <code>plans/</code></td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative payload list (AC-5):</strong> <code>../etc/passwd</code>, <code>..%2Fetc</code>, <code>plan..\etc</code>, <code>plan/../..</code>, null-byte <code>plan%00..</code>, symlink escape &mdash; all 400.</p>
+  </div>
+</details>
+
+<details class="tc" data-id="TC-SEC-002" data-cat="SEC" data-priority="P0">
+  <summary><input type="checkbox"><span class="badge badge-red">P0</span><span class="tc-id">TC-SEC-002</span><span class="tc-title">XSS payload stored raw, rendered as text</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> <a href="design.html#ac-list">AC-6</a>.</p>
+    <p><strong>Pre:</strong> authenticated reviewer; body contains script payload.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>POST <code>body:"&lt;img src=x onerror=alert(1)&gt;"</code></td><td>201; JSONL stores raw string</td></tr>
+      <tr><td>Render in sidebar + inline mark</td><td>Shown as literal text; no <code>alert()</code>; DevTools reports 0 script execs</td></tr>
+      <tr><td>Scan DOM</td><td>No <code>&lt;img&gt;</code>, <code>&lt;script&gt;</code>, or <code>on*=</code> attributes injected</td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative payload list (AC-6):</strong> <code>&lt;img onerror&gt;</code>, <code>&lt;svg onload&gt;</code>, <code>javascript:</code> in <code>href</code>, HTML entity double-encoding, unicode RTL override <code>\u202e</code>, template-literal <code>${alert(1)}</code> &mdash; all render as text.</p>
+  </div>
+</details>
+
+<details class="tc" data-id="TC-SEC-003" data-cat="SEC" data-priority="P0">
+  <summary><input type="checkbox"><span class="badge badge-red">P0</span><span class="tc-id">TC-SEC-003</span><span class="tc-title">Client-supplied author + reviseStatus dropped server-side</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> <a href="design.html#ac-list">AC-2</a>, <a href="test-plan.html#e2e-12">E2E-12</a>.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>POST as <code>bob</code> with <code>{author:"alice", reviseStatus:"accepted", intent:"revise"}</code> from reviewer</td><td>403 <code>FORBIDDEN</code> on <code>intent=revise</code>; if <code>intent=comment</code> sent alone &rarr; 201 with <code>author:"bob"</code></td></tr>
+      <tr><td>Inspect JSONL</td><td><code>reviseStatus</code> field ignored; server-stamped only</td></tr>
+      <tr><td>Stderr log</td><td>Line <code>BLOCKED intent=revise sid=...</code> appears on forgery</td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> session cookie stripped &rarr; 401 before body parse.</p>
+  </div>
+</details>
+
+<!-- ================= 9. ACCESSIBILITY ================= -->
+<h2 id="cat-a11y">9. Accessibility <span class="badge badge-blue">2 TCs</span></h2>
+<div class="diagram">
+  <svg viewBox="0 0 400 170" role="img" aria-labelledby="cat-a11y-t cat-a11y-d" width="400" height="170">
+    <title id="cat-a11y-t">Keyboard + screen-reader flow</title>
+    <desc id="cat-a11y-d">Tab into section, arrow-select, Ctrl+Alt+M opens composer, Esc returns focus — SR announces each step.</desc>
+    <rect x="4" y="4" width="392" height="162" rx="5" fill="var(--svg-bg2)" stroke="var(--svg-border)"/>
+    <rect x="16" y="64" width="72" height="34" rx="6" fill="var(--svg-bg)" stroke="var(--accent)"/><text x="52" y="86" text-anchor="middle" font-family="sans-serif" font-size="10">Tab sec</text>
+    <rect x="98" y="64" width="80" height="34" rx="6" fill="var(--svg-bg)" stroke="var(--accent)"/><text x="138" y="86" text-anchor="middle" font-family="sans-serif" font-size="10">arrow-select</text>
+    <rect x="188" y="64" width="96" height="34" rx="6" fill="var(--svg-bg)" stroke="var(--accent)"/><text x="236" y="86" text-anchor="middle" font-family="sans-serif" font-size="10">Ctrl+Alt+M</text>
+    <rect x="294" y="64" width="90" height="34" rx="6" fill="var(--svg-bg)" stroke="var(--green)"/><text x="339" y="86" text-anchor="middle" font-family="sans-serif" font-size="10">composer</text>
+    <line x1="88" y1="81" x2="98" y2="81" stroke="var(--accent)" stroke-width="1.5"/>
+    <line x1="178" y1="81" x2="188" y2="81" stroke="var(--accent)" stroke-width="1.5"/>
+    <line x1="284" y1="81" x2="294" y2="81" stroke="var(--green)" stroke-width="1.5"/>
+    <text x="16" y="130" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">Esc returns focus to selection end. NVDA/JAWS/VoiceOver announce composer + referenced text.</text>
+    <text x="16" y="148" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">"Comment posted" fires in ARIA live region on 201.</text>
+  </svg>
+  <div class="caption">Figure 8. Keyboard-only flow + SR announcements (UC-10, AC-8).</div>
+</div>
+
+<details class="tc" data-id="TC-A11Y-001" data-cat="A11Y" data-priority="P1">
+  <summary><input type="checkbox"><span class="badge badge-yellow">P1</span><span class="tc-id">TC-A11Y-001</span><span class="tc-title">Keyboard-only compose + submit + close</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> <a href="design.html#ac-list">AC-8</a>, UC-10.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>Tab to section; shift+arrow select a phrase</td><td>Selection announced by SR</td></tr>
+      <tr><td>Press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd></td><td>Composer opens; focus in textarea; SR says <em>"Comment composer, referencing: ..."</em></td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>201; live region announces <em>"Comment posted"</em></td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>Composer closes; focus returns to selection end</td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> focus trap escape fails &rarr; Tab leaks out of composer; must fail CI.</p>
+  </div>
+</details>
+
+<details class="tc" data-id="TC-A11Y-002" data-cat="A11Y" data-priority="P1">
+  <summary><input type="checkbox"><span class="badge badge-yellow">P1</span><span class="tc-id">TC-A11Y-002</span><span class="tc-title">Dark-mode contrast + highlight graphics meet WCAG AA</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> <a href="design.html#ac-list">AC-12</a>.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>Switch theme to dark</td><td>Highlight <code>&lt;mark&gt;</code>, resolved badge, orphan dot render</td></tr>
+      <tr><td>Run axe-core / Lighthouse</td><td>Text contrast &ge;4.5:1; graphic contrast &ge;3:1</td></tr>
+      <tr><td>Measure highlight vs surface</td><td>Accent-tinted <code>&lt;mark&gt;</code> distinguishable from <code>--surface</code></td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> <code>prefers-contrast: more</code> override &rarr; highlights upgrade to solid fill; no regressions.</p>
+  </div>
+</details>
+
+<!-- ================= 10. RATE LIMITING ================= -->
+<h2 id="cat-rate">10. Rate Limiting <span class="badge badge-blue">2 TCs</span></h2>
+<div class="diagram">
+  <svg viewBox="0 0 400 170" role="img" aria-labelledby="cat-rate-t cat-rate-d" width="400" height="170">
+    <title id="cat-rate-t">Token-bucket rate limit</title>
+    <desc id="cat-rate-d">Each POST spends one token; empty bucket returns 429 with Retry-After; refill 5/10s.</desc>
+    <rect x="4" y="4" width="392" height="162" rx="5" fill="var(--svg-bg2)" stroke="var(--svg-border)"/>
+    <rect x="16" y="44" width="100" height="44" rx="6" fill="var(--svg-bg)" stroke="var(--green)"/><text x="66" y="70" text-anchor="middle" font-family="sans-serif" font-size="11">tokens=5</text>
+    <rect x="140" y="44" width="100" height="44" rx="6" fill="var(--svg-bg)" stroke="var(--yellow)"/><text x="190" y="70" text-anchor="middle" font-family="sans-serif" font-size="11">tokens=0</text>
+    <rect x="264" y="44" width="120" height="44" rx="6" fill="var(--svg-bg)" stroke="var(--red)"/><text x="324" y="70" text-anchor="middle" font-family="sans-serif" font-size="11">429 Retry-After</text>
+    <line x1="116" y1="66" x2="140" y2="66" stroke="var(--accent)" stroke-width="1.5"/>
+    <line x1="240" y1="66" x2="264" y2="66" stroke="var(--red)" stroke-width="1.5"/>
+    <path d="M 264 80 Q 180 130 66 90" stroke="var(--green)" stroke-width="1.5" fill="none" stroke-dasharray="4,2"/>
+    <text x="200" y="124" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">refill: +5 tokens every 10s (clamped)</text>
+    <text x="16" y="156" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">Bucket is per sid; host loopback bypass documented separately.</text>
+  </svg>
+  <div class="caption">Figure 9. Rate-limit bucket (State-machine &sect;8).</div>
+</div>
+
+<details class="tc" data-id="TC-RATE-001" data-cat="RATE" data-priority="P0">
+  <summary><input type="checkbox"><span class="badge badge-red">P0</span><span class="tc-id">TC-RATE-001</span><span class="tc-title">11th POST in 60s returns 429 with countdown</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> <a href="design.html#ac-list">AC-7</a>, <a href="test-plan.html#e2e-7">E2E-7</a>.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>Scripted 10 POSTs within 60s</td><td>All 201 or 429 per token math (5/10s cap; doc defaults)</td></tr>
+      <tr><td>11th POST right after cap</td><td>429 <code>RATE_LIMITED</code> with <code>Retry-After</code> header</td></tr>
+      <tr><td>UI</td><td>Submit button disabled; visible countdown reads <code>Retry-After</code></td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> server <code>Retry-After</code> missing &rarr; UI countdown falls back to 10s default; fail this TC if header absent.</p>
+  </div>
+</details>
+
+<details class="tc" data-id="TC-RATE-002" data-cat="RATE" data-priority="P1">
+  <summary><input type="checkbox"><span class="badge badge-yellow">P1</span><span class="tc-id">TC-RATE-002</span><span class="tc-title">Bucket refills after window; submit re-enables</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> state-machine &sect;8 <code>empty &rarr; refilled</code>.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>Hit 429, wait for countdown</td><td>Submit re-enables at t=0</td></tr>
+      <tr><td>POST after refill</td><td>201; bucket shows 4 remaining tokens</td></tr>
+      <tr><td>Bucket never exceeds cap</td><td>Long idle &rarr; tokens clamp at 5, not unbounded</td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> re-send during countdown &rarr; 429 again, not queued.</p>
+  </div>
+</details>
+
+<!-- ================= 11. OFFLINE / DRAFT ================= -->
+<h2 id="cat-offline">11. Offline / Draft <span class="badge badge-blue">2 TCs</span></h2>
+<div class="diagram">
+  <svg viewBox="0 0 400 170" role="img" aria-labelledby="cat-off-t cat-off-d" width="400" height="170">
+    <title id="cat-off-t">Draft restore + disk-full surfacing</title>
+    <desc id="cat-off-d">localStorage keyed draft survives reload; POST failure on 507 never silent-200s.</desc>
+    <rect x="4" y="4" width="392" height="162" rx="5" fill="var(--svg-bg2)" stroke="var(--svg-border)"/>
+    <rect x="16" y="44" width="104" height="40" rx="6" fill="var(--svg-bg)" stroke="var(--accent)"/><text x="68" y="68" text-anchor="middle" font-family="sans-serif" font-size="11">compose</text>
+    <rect x="140" y="44" width="104" height="40" rx="6" fill="var(--svg-bg)" stroke="var(--yellow)"/><text x="192" y="68" text-anchor="middle" font-family="sans-serif" font-size="11">draft</text>
+    <rect x="264" y="44" width="120" height="40" rx="6" fill="var(--svg-bg)" stroke="var(--green)"/><text x="324" y="68" text-anchor="middle" font-family="sans-serif" font-size="11">posted</text>
+    <line x1="120" y1="64" x2="140" y2="64" stroke="var(--yellow)" stroke-width="1.5" stroke-dasharray="3,2"/>
+    <line x1="244" y1="64" x2="264" y2="64" stroke="var(--green)" stroke-width="1.5"/>
+    <line x1="140" y1="76" x2="264" y2="76" stroke="var(--red)" stroke-width="1.5"/>
+    <text x="202" y="96" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">507 DISK_FULL &rarr; banner, retry, never silent-200</text>
+    <text x="16" y="140" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">Draft key: (scenario, doc, anchor). Restored on reload with re-highlight.</text>
+  </svg>
+  <div class="caption">Figure 10. Draft + disk-full path (UC-12, AC-15).</div>
+</div>
+
+<details class="tc" data-id="TC-OFFLINE-001" data-cat="OFFLINE" data-priority="P0">
+  <summary><input type="checkbox"><span class="badge badge-red">P0</span><span class="tc-id">TC-OFFLINE-001</span><span class="tc-title">Offline draft saved to localStorage, restored on reload</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> UC-12, <a href="test-plan.html#e2e-3">E2E-3</a>.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>Open composer, type 80 chars, go offline (DevTools)</td><td>Banner <em>"Saved as draft &mdash; will retry when reconnected"</em>; key <code>(scenario, doc, anchor)</code> in localStorage</td></tr>
+      <tr><td>Close tab, reopen next day</td><td>Draft re-surfaces with original selection re-highlighted</td></tr>
+      <tr><td>Reconnect + submit</td><td>POST fires, 201, draft cleared from storage</td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> localStorage quota exceeded &rarr; banner <em>"Draft too large to save locally"</em>; no silent drop.</p>
+  </div>
+</details>
+
+<details class="tc" data-id="TC-OFFLINE-002" data-cat="OFFLINE" data-priority="P0">
+  <summary><input type="checkbox"><span class="badge badge-red">P0</span><span class="tc-id">TC-OFFLINE-002</span><span class="tc-title">Disk-full returns 507 with surfaced banner; never silent-200</span></summary>
+  <div class="body">
+    <p><strong>Maps to:</strong> <a href="design.html#ac-list">AC-15</a>, <a href="test-plan.html#e2e-10">E2E-10</a>.</p>
+    <p><strong>Pre:</strong> <code>.comments/</code> on a tmpfs sized to trigger <code>ENOSPC</code>.</p>
+    <table><thead><tr><th>Action</th><th>Expected</th></tr></thead><tbody>
+      <tr><td>POST a comment</td><td>507 <code>DISK_FULL</code>; response <code>{error:"DISK_FULL",message:"Couldn't save &mdash; disk full on host"}</code></td></tr>
+      <tr><td>Inspect JSONL</td><td>No partial line (atomic append abandoned)</td></tr>
+      <tr><td>UI banner</td><td>Red banner with retry button; draft preserved in localStorage</td></tr>
+    </tbody></table>
+    <p class="neg"><strong>Negative:</strong> intermittent ENOSPC on one retry &rarr; next retry succeeds without duplicating the draft.</p>
+  </div>
+</details>
+
+<!-- ================= 12. CROSS-CUTTING BATTERY ================= -->
+<h2 id="cross">12. Cross-cutting Battery</h2>
+
+<h3>Security payload lists</h3>
+<p><strong>AC-5 path-traversal vectors (&ge;10):</strong> <code>../etc/passwd</code>, <code>..%2Fetc</code>, <code>..%252Fetc</code>, <code>plan/../..</code>, <code>plan..\etc</code> (Windows sep), <code>plan%00..</code> (null byte), <code>plan/.</code> + symlink target, absolute <code>/etc/passwd</code>, unicode slash <code>\u2215</code>, overly long segment &gt;80 chars, segment containing space. All expect 400 before any <code>fs.open</code>.</p>
+<p><strong>AC-6 XSS vectors (&ge;8):</strong> <code>&lt;img src=x onerror=alert(1)&gt;</code>, <code>&lt;svg onload=alert(1)&gt;</code>, <code>&lt;iframe src=javascript:...&gt;</code>, <code>&lt;a href="javascript:alert(1)"&gt;link&lt;/a&gt;</code>, entity-encoded <code>&amp;lt;script&amp;gt;</code>, polyglot <code>"&gt;&lt;svg/onload=alert(1)&gt;</code>, unicode RTL override <code>\u202e</code>, template literal <code>${alert(1)}</code>. All render as text.</p>
+
+<h3>Accessibility battery</h3>
+<ul>
+  <li>Keyboard-only round trip: Tab to doc &rarr; select &rarr; compose &rarr; submit &rarr; close &mdash; no mouse.</li>
+  <li>Focus never leaves composer on Tab (focus trap); <kbd>Esc</kbd> returns focus to anchor.</li>
+  <li>ARIA live region announces <em>"Comment posted"</em> within 1s of 201.</li>
+  <li>High-contrast + dark-mode both pass axe-core (0 violations on widget surfaces).</li>
+</ul>
+
+<h3>Performance budgets</h3>
+<ul>
+  <li>TTFC (time-to-first-comment) p50 &lt; 30s; p95 &lt; 90s from landing on login (Design &sect;1 success metric).</li>
+  <li>Anchor scan on load: &lt;50ms for &le;100 comments on a 6k-word doc; &lt;200ms for 500 comments.</li>
+  <li>SSE broadcast fan-out latency: &le;500ms localhost / &le;1.5s devtunnel.</li>
+  <li>[ ] TODO: confirm 500-comment anchor scan budget with backend dev under real JSONL sizes.</li>
+</ul>
+
+<!-- ================= 13. TRACEABILITY ================= -->
+<h2 id="trace">13. Traceability Appendix &mdash; AC &rarr; TCs</h2>
+<table class="trace-table">
+  <thead><tr><th>AC</th><th>Priority</th><th>Test cases</th></tr></thead>
+  <tbody>
+    <tr><td>AC-1 Anchor correctness</td><td><span class="badge badge-red">P0</span></td><td>TC-ANCHOR-001, TC-CRUD-001</td></tr>
+    <tr><td>AC-2 Attribution</td><td><span class="badge badge-red">P0</span></td><td>TC-CRUD-001, TC-SEC-003</td></tr>
+    <tr><td>AC-3 Re-anchor</td><td><span class="badge badge-red">P0</span></td><td>TC-ANCHOR-002, TC-ANCHOR-003, TC-ANCHOR-004</td></tr>
+    <tr><td>AC-4 Resolve semantics</td><td><span class="badge badge-red">P0</span></td><td>TC-RESOLVE-001, TC-RESOLVE-002</td></tr>
+    <tr><td>AC-5 Path traversal</td><td><span class="badge badge-red">P0</span></td><td>TC-SEC-001 (plus AC-5 payload list &sect;12)</td></tr>
+    <tr><td>AC-6 XSS</td><td><span class="badge badge-red">P0</span></td><td>TC-SEC-002 (plus AC-6 payload list &sect;12)</td></tr>
+    <tr><td>AC-7 Rate limit</td><td><span class="badge badge-red">P0</span></td><td>TC-RATE-001, TC-RATE-002</td></tr>
+    <tr><td>AC-8 Keyboard a11y</td><td><span class="badge badge-yellow">P1</span></td><td>TC-A11Y-001</td></tr>
+    <tr><td>AC-9 Orphan UX</td><td><span class="badge badge-yellow">P1</span></td><td>TC-ANCHOR-004</td></tr>
+    <tr><td>AC-10 Durable append</td><td><span class="badge badge-yellow">P1</span></td><td>TC-CRUD-001 + scripted 50-parallel variant under E2E-9</td></tr>
+    <tr><td>AC-11 Edit window</td><td><span class="badge badge-yellow">P1</span></td><td>TC-CRUD-003</td></tr>
+    <tr><td>AC-12 Theme parity</td><td><span class="badge badge-yellow">P1</span></td><td>TC-A11Y-002</td></tr>
+    <tr><td>AC-15 Never silent fail</td><td><span class="badge badge-red">P0</span></td><td>TC-OFFLINE-002</td></tr>
+    <tr><td>Revise lifecycle (UC-13..15)</td><td><span class="badge badge-red">P0</span></td><td>TC-REVISE-001, TC-REVISE-002, TC-REVISE-003, TC-REVISE-004</td></tr>
+    <tr><td>SSE lifecycle (state &sect;7)</td><td><span class="badge badge-yellow">P1</span></td><td>TC-SSE-001, TC-SSE-002</td></tr>
+    <tr><td>Draft / offline (UC-12)</td><td><span class="badge badge-yellow">P1</span></td><td>TC-OFFLINE-001</td></tr>
+  </tbody>
+</table>
+<p class="meta"><strong>Coverage:</strong> 13 of 13 non-P2 ACs map to &ge;1 TC. AC-13 (PDF export) and AC-14 (unread badge) are P2 and intentionally deferred per <a href="test-plan.html">test-plan</a> out-of-scope.</p>
+
+</main>
+
+<script>
+(function(){
+  var KEY = 'plan-harness-theme';
+  var html = document.documentElement;
+  var btn = document.getElementById('themeToggle');
+  function apply(pref){
+    var dark = pref === 'dark' || (pref === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+    html.setAttribute('data-theme', dark ? 'dark' : 'light');
+    html.setAttribute('data-theme-pref', pref);
+    btn.setAttribute('data-theme-pref', pref);
+  }
+  var cur = localStorage.getItem(KEY) || 'system';
+  apply(cur);
+  btn.addEventListener('click', function(){
+    var next = cur === 'system' ? 'light' : cur === 'light' ? 'dark' : 'system';
+    cur = next; localStorage.setItem(KEY, next); apply(next);
+  });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(){
+    if ((localStorage.getItem(KEY) || 'system') === 'system') apply('system');
+  });
+  window.addEventListener('storage', function(e){
+    if (e.key === KEY) { cur = e.newValue || 'system'; apply(cur); }
+  });
+})();
+
+(function(){
+  var PREFIX = 'built-in-comment-ui:test-cases';
+  var FILTER_KEY = PREFIX + ':filters';
+  var cards = Array.from(document.querySelectorAll('details.tc'));
+
+  function cbKey(id){ return PREFIX + ':' + id; }
+
+  function refreshCounts(){
+    var total = cards.length;
+    var done = cards.filter(function(c){ return c.querySelector('summary input').checked; }).length;
+    document.getElementById('totalCount').textContent = total;
+    document.getElementById('doneCount').textContent = done;
+    document.getElementById('remainCount').textContent = total - done;
+  }
+
+  cards.forEach(function(c){
+    var cb = c.querySelector('summary input[type=checkbox]');
+    var saved = localStorage.getItem(cbKey(c.dataset.id));
+    if (saved === 'true') { cb.checked = true; c.setAttribute('data-checked', 'true'); }
+    cb.addEventListener('click', function(e){ e.stopPropagation(); });
+    cb.addEventListener('change', function(){
+      localStorage.setItem(cbKey(c.dataset.id), cb.checked ? 'true' : 'false');
+      if (cb.checked) c.setAttribute('data-checked', 'true');
+      else c.removeAttribute('data-checked');
+      refreshCounts();
+      applyFilters();
+    });
+  });
+
+  var fCat = document.getElementById('filterCat');
+  var fPrio = document.getElementById('filterPrio');
+  var fStatus = document.getElementById('filterStatus');
+  var fSearch = document.getElementById('filterSearch');
+  var fClear = document.getElementById('filterClear');
+
+  function saveFilters(){
+    try {
+      localStorage.setItem(FILTER_KEY, JSON.stringify({
+        cat: fCat.value, prio: fPrio.value, status: fStatus.value, q: fSearch.value
+      }));
+    } catch(e){}
+  }
+  function loadFilters(){
+    try {
+      var s = JSON.parse(localStorage.getItem(FILTER_KEY) || '{}');
+      if (s.cat) fCat.value = s.cat;
+      if (s.prio) fPrio.value = s.prio;
+      if (s.status) fStatus.value = s.status;
+      if (s.q) fSearch.value = s.q;
+    } catch(e){}
+  }
+  function applyFilters(){
+    var q = fSearch.value.trim().toLowerCase();
+    cards.forEach(function(c){
+      var show = true;
+      if (fCat.value && c.dataset.cat !== fCat.value) show = false;
+      if (fPrio.value && c.dataset.priority !== fPrio.value) show = false;
+      var done = c.querySelector('summary input').checked;
+      if (fStatus.value === 'done' && !done) show = false;
+      if (fStatus.value === 'open' && done) show = false;
+      if (q) {
+        var text = (c.dataset.id + ' ' + c.querySelector('.tc-title').textContent).toLowerCase();
+        if (text.indexOf(q) < 0) show = false;
+      }
+      c.style.display = show ? '' : 'none';
+    });
+    saveFilters();
+  }
+  [fCat, fPrio, fStatus].forEach(function(el){ el.addEventListener('change', applyFilters); });
+  fSearch.addEventListener('input', applyFilters);
+  fClear.addEventListener('click', function(){
+    fCat.value = ''; fPrio.value = ''; fStatus.value = ''; fSearch.value = '';
+    applyFilters();
+  });
+  document.getElementById('expandAll').addEventListener('click', function(){
+    cards.forEach(function(c){ c.open = true; });
+  });
+  document.getElementById('collapseAll').addEventListener('click', function(){
+    cards.forEach(function(c){ c.open = false; });
+  });
+
+  loadFilters();
+  refreshCounts();
+  applyFilters();
+})();
+</script>
+
+</body>
+</html>
