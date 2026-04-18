@@ -12,5 +12,9 @@
   "status": "draft",
   "designHtml": "design.html",
   "designGeneratedAt": "2026-04-17T12:03:00.000Z",
-  "designRegeneratedAt": "2026-04-17T14:05:00.000Z"
+  "designRegeneratedAt": "2026-04-17T14:05:00.000Z",
+  "testPlanHtml": "test-plan.html",
+  "testPlanGeneratedAt": "2026-04-18T00:00:00.000Z",
+  "stateMachineHtml": "state-machine.html",
+  "stateMachineGeneratedAt": "2026-04-18T12:27:10Z"
 }

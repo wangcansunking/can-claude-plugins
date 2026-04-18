@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Plan -- built-in-comment-ui</title>
+<script>
+(function(){
+  try {
+    var KEY='plan-harness-theme';
+    var pref=localStorage.getItem(KEY)||'system';
+    var dark=pref==='dark'||(pref==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.setAttribute('data-theme', dark?'dark':'light');
+    document.documentElement.setAttribute('data-theme-pref', pref);
+  } catch(e) {}
+})();
+</script>
+<style>
+/* Palette inspired by Linear (see plan-harness/DESIGN.md). */
+:root {
+  --bg: #f7f8f8; --surface: #f3f4f5; --border: #d0d6e0;
+  --text: #08090a; --muted: #62666d; --accent: #5e6ad2;
+  --green: #1a7f37; --red: #cf222e; --yellow: #9a6700; --purple: #7170ff;
+  --orange: #b35200;
+  --code-bg: #eeeff1;
+  --even-row-bg: rgba(243,244,245,0.7);
+  --badge-green-bg: rgba(26,127,55,0.1); --badge-yellow-bg: rgba(154,103,0,0.1);
+  --badge-red-bg: rgba(207,34,46,0.1); --badge-blue-bg: rgba(94,106,210,0.1);
+  --badge-purple-bg: rgba(113,112,255,0.1);
+  --badge-orange-bg: rgba(179,82,0,0.1);
+  --shadow: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.08);
+  --radius: 8px;
+  --radius-sm: 4px;
+  --font-ui: 'Inter Variable', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Berkeley Mono', 'Cascadia Code', 'Fira Code', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font-features: "cv01", "ss03";
+}
+[data-theme="dark"] {
+  --bg: #08090a; --surface: #0f1011; --border: rgba(255,255,255,0.08);
+  --text: #f7f8f8; --muted: #8a8f98; --accent: #7170ff;
+  --green: #27a644; --red: #f85149; --yellow: #d29922; --purple: #828fff;
+  --orange: #e3934a;
+  --code-bg: #141516;
+  --even-row-bg: rgba(25,26,27,0.5);
+  --badge-green-bg: rgba(39,166,68,0.15); --badge-yellow-bg: rgba(210,153,34,0.15);
+  --badge-red-bg: rgba(248,81,73,0.15); --badge-blue-bg: rgba(113,112,255,0.15);
+  --badge-purple-bg: rgba(130,143,255,0.15);
+  --badge-orange-bg: rgba(227,147,74,0.15);
+  --shadow: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; font-feature-settings: var(--font-features); }
+body {
+  font-family: var(--font-ui); background: var(--bg); color: var(--text);
+  line-height: 1.6; font-weight: 400; letter-spacing: -0.01em;
+  transition: background-color 0.2s, color 0.2s;
+  padding-left: 260px; padding-top: 3rem;
+}
+code, pre, kbd, samp { font-family: var(--font-mono); }
+
+h1 { font-size: 2rem; font-weight: 510; letter-spacing: -0.02em; border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; margin-bottom: 0.4rem; }
+h2 { font-size: 1.5rem; font-weight: 510; letter-spacing: -0.015em; color: var(--accent); margin-top: 3rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; scroll-margin-top: 1rem; }
+h3 { font-size: 1.15rem; font-weight: 590; letter-spacing: -0.01em; color: var(--purple); margin-top: 2rem; margin-bottom: 0.7rem; }
+h4 { font-size: 1rem; font-weight: 590; color: var(--green); margin-top: 1.5rem; margin-bottom: 0.5rem; }
+p, li { color: var(--text); margin-bottom: 0.5rem; }
+ul, ol { padding-left: 1.5rem; margin-bottom: 1rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.meta { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.2rem; }
+
+/* Plan tabs */
+.plan-tabs { display: flex; gap: 0.15rem; border-bottom: 1px solid var(--border); margin-bottom: 1.8rem; overflow-x: auto; scrollbar-width: none; }
+.plan-tabs::-webkit-scrollbar { display: none; }
+.plan-tabs a { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.55rem 0.85rem; font-size: 0.87rem; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; transition: color 0.15s, border-color 0.15s; font-weight: 510; }
+.plan-tabs a:hover:not([aria-disabled="true"]) { color: var(--text); }
+.plan-tabs a.active { color: var(--accent); border-bottom-color: var(--accent); }
+.plan-tabs a[aria-disabled="true"] { opacity: 0.5; cursor: default; }
+.plan-tabs .soon { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.12em 0.45em; border-radius: 10px; background: var(--code-bg); color: var(--muted); border: 1px solid var(--border); font-weight: 510; }
+
+/* Theme toggle */
+.theme-toggle {
+  position: fixed; top: 1rem; right: 1.5rem; z-index: 10000;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.45rem 0.55rem; cursor: pointer; color: var(--text);
+  transition: background 0.2s, border-color 0.2s;
+  display: flex; align-items: center; justify-content: center; width: 36px; height: 36px;
+}
+.theme-toggle:hover { border-color: var(--accent); }
+.theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.theme-toggle svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.theme-toggle svg[data-theme-icon] { display: none; }
+.theme-toggle[data-theme-pref="system"] svg[data-theme-icon="system"],
+.theme-toggle[data-theme-pref="light"]  svg[data-theme-icon="light"],
+.theme-toggle[data-theme-pref="dark"]   svg[data-theme-icon="dark"] { display: block; }
+
+/* Sidebar */
+.side-nav {
+  position: fixed; top: 0; left: 0; width: 260px; height: 100vh;
+  background: var(--surface); border-right: 1px solid var(--border);
+  overflow-y: auto; z-index: 998; padding: 0;
+  display: flex; flex-direction: column;
+}
+.section-nav { padding: 4rem 0 0.6rem; overflow-y: auto; flex: 1; }
+.section-nav .group-label {
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--muted); padding: 0.3rem 1rem 0.3rem;
+}
+.section-nav a {
+  display: block; padding: 0.3rem 1rem; font-size: 0.8rem; color: var(--muted);
+  text-decoration: none; border-left: 3px solid transparent;
+}
+.section-nav a:hover { color: var(--text); background: var(--bg); }
+.section-nav a.active { color: var(--accent); border-left-color: var(--accent); background: var(--bg); font-weight: 510; }
+.section-nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* Main content */
+.container { max-width: 1060px; margin: 0 auto; padding: 1rem 2.5rem 5rem; }
+
+code {
+  background: var(--code-bg); padding: 0.12em 0.4em; border-radius: 4px;
+  font-size: 0.88em; color: var(--yellow);
+}
+pre {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.9rem 1rem; overflow-x: auto; margin: 0.8rem 0; font-size: 0.82rem;
+  line-height: 1.55; color: var(--text);
+}
+pre code { background: transparent; padding: 0; color: inherit; font-size: inherit; }
+
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+thead th {
+  position: sticky; top: 0; background: var(--surface); color: var(--accent);
+  text-align: left; padding: 0.55rem 0.8rem; border: 1px solid var(--border); font-weight: 600;
+  z-index: 1;
+}
+td { padding: 0.5rem 0.8rem; border: 1px solid var(--border); vertical-align: top; }
+tbody tr:nth-child(even) { background: var(--even-row-bg); }
+
+/* Badges */
+.badge { display: inline-block; padding: 0.13em 0.55em; border-radius: 12px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+.badge-green { background: var(--badge-green-bg); color: var(--green); border: 1px solid var(--green); }
+.badge-yellow { background: var(--badge-yellow-bg); color: var(--yellow); border: 1px solid var(--yellow); }
+.badge-red { background: var(--badge-red-bg); color: var(--red); border: 1px solid var(--red); }
+.badge-blue { background: var(--badge-blue-bg); color: var(--accent); border: 1px solid var(--accent); }
+.badge-purple { background: var(--badge-purple-bg); color: var(--purple); border: 1px solid var(--purple); }
+.badge-orange { background: var(--badge-orange-bg); color: var(--orange); border: 1px solid var(--orange); }
+.badge-gray { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+
+/* Callouts */
+.callout { border-left: 4px solid var(--accent); background: var(--surface); padding: 1rem 1.2rem; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+.callout-warn { border-left-color: var(--yellow); }
+.callout-important { border-left-color: var(--red); }
+.callout-decision { border-left-color: var(--purple); }
+.callout-title { font-weight: 700; margin-bottom: 0.3rem; color: var(--text); display: flex; align-items: center; gap: 0.5rem; }
+
+/* Cards */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.2rem; margin: 1rem 0; }
+
+/* Details / scenario */
+details { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin: 0.7rem 0; overflow: hidden; }
+details summary {
+  cursor: pointer; padding: 0.7rem 1rem; font-weight: 600; color: var(--text);
+  display: flex; align-items: center; gap: 0.5rem; list-style: none; user-select: none; flex-wrap: wrap;
+}
+details summary::-webkit-details-marker { display: none; }
+details summary::before { content: '\25B8'; color: var(--accent); transition: transform 0.15s; display: inline-block; width: 0.9em; }
+details[open] summary::before { transform: rotate(90deg); }
+details summary:hover { background: var(--bg); }
+details summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+details .body { padding: 0.2rem 1rem 1rem 2.3rem; }
+details .body h4:first-child { margin-top: 0.4rem; }
+details .body ol, details .body ul { margin-bottom: 0.6rem; }
+
+/* Scenario meta row */
+.sc-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem; margin-left: auto; }
+.sc-id { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+
+/* TODO / tracker checklist */
+ul.tracker { list-style: none; padding-left: 0; }
+ul.tracker li { padding: 0.2rem 0; font-size: 0.9rem; }
+
+kbd {
+  display: inline-block; padding: 0.1em 0.45em; border: 1px solid var(--border); border-bottom-width: 2px;
+  border-radius: 4px; background: var(--code-bg); color: var(--text);
+  font-size: 0.8rem;
+}
+
+@media (max-width: 768px) {
+  body { padding-left: 0; }
+  .side-nav {
+    position: static; width: 100%; height: auto; border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-nav { display: none; }
+  .container { padding: 1.2rem 1.2rem 3rem; }
+}
+
+@media print {
+  body { padding-left: 0; padding-top: 0; background: #fff; color: #000; }
+  .side-nav, .theme-toggle { display: none !important; }
+  .container { max-width: 100%; padding: 0; }
+  details { border-color: #ccc; background: #fff; }
+  details > .body { display: block !important; }
+  details[open] .body, details .body { display: block !important; }
+  details summary::before { content: ''; }
+  h1, h2, h3, h4 { color: #000; }
+  h2 { border-bottom: 1px solid #666; }
+  h1 { border-bottom: 2px solid #000; }
+  .badge { border: 1px solid #999; color: #000 !important; background: #eee !important; }
+  pre, code { background: #f4f4f4 !important; color: #000 !important; border-color: #ccc !important; }
+  .card, .callout { border-color: #ccc; background: #fff; break-inside: avoid; }
+  table, tr, td, th { page-break-inside: avoid; }
+  thead th { background: #eee !important; color: #000 !important; position: static; }
+  a { color: #000; text-decoration: underline; }
+}
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle" type="button" aria-label="Theme (click to cycle: system, light, dark)" title="Theme -- click to cycle">
+  <svg data-theme-icon="system" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  <svg data-theme-icon="light" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  <svg data-theme-icon="dark" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+</button>
+
+<nav class="side-nav" aria-label="Plan navigation">
+  <div class="section-nav" aria-label="Sections">
+    <div class="group-label">On this page</div>
+    <a href="#executive-summary">1. Executive Summary</a>
+    <a href="#environments">2. Test Environments</a>
+    <a href="#personas">3. Personas</a>
+    <a href="#golden-path">4. Golden-Path Scenarios</a>
+    <a href="#edge-failure">5. Edge &amp; Failure Scenarios</a>
+    <a href="#cross-cutting">6. Cross-cutting Concerns</a>
+    <a href="#tracker">7. Priority &amp; Progress Tracker</a>
+    <a href="#traceability">8. Traceability Matrix</a>
+    <a href="#out-of-scope">9. Not in Scope</a>
+  </div>
+</nav>
+
+<main class="container">
+<nav class="plan-tabs" aria-label="Plan documents">
+  <a href="design.html">Design</a>
+  <a href="test-plan.html" class="active" aria-current="page">Test Plan</a>
+  <a href="state-machine.html">State Machine</a>
+  <a href="test-cases.html" aria-disabled="true">Test Cases <span class="soon">soon</span></a>
+  <a href="implementation-plan.html" aria-disabled="true">Implementation <span class="soon">soon</span></a>
+</nav>
+
+<h1>Test Plan: built-in-comment-ui</h1>
+<p class="meta">
+  Scenario: <code>built-in-comment-ui</code> &middot; Plugin: <code>plan-harness</code> &middot; Layer: E2E (narrative)
+  <span class="badge badge-blue">collaboration</span>
+  <span class="badge badge-purple">review</span>
+  <span class="badge badge-red">p0</span>
+</p>
+
+<!-- ============ 1. EXECUTIVE SUMMARY ============ -->
+<h2 id="executive-summary">1. Executive Summary</h2>
+<p>This document defines the end-to-end test plan for the text-selection comment layer. &ldquo;Done&rdquo; means a reviewer who has never seen plan-harness before can land on a shared tunnel, select text in a plan doc, leave an attributed comment, reply, and have it survive a doc regen &mdash; while the host sees unresolved counts on the dashboard, can resolve threads, and can dispatch a <code>revise</code> intent to an agent without leaving the browser. Coverage spans four environments (loopback, devtunnel reviewer, devtunnel host upgrade, offline), three personas (Host/Author, Reviewer, Agent), and every AC from <a href="design.html#ac-list">design &sect;7</a>. Detailed step-level test cases live in the sibling <code>test-cases.html</code>; this plan carries user-journey scenarios meant for human execution or Phase-5 harness scripting.</p>
+
+<div class="callout callout-warn">
+  <div class="callout-title"><span class="badge badge-yellow">Invariant</span> Never trust the client</div>
+  <p>Every scenario below is written against the server-enforced contract: <code>author</code> is stamped server-side from the session; <code>intent: "revise"</code> is gated by host role; path params are allow-listed; JSONL is append-only. Any scenario that &ldquo;passes&rdquo; because the client withheld a field has failed.</p>
+</div>
+
+<!-- ============ 2. ENVIRONMENTS ============ -->
+<h2 id="environments">2. Test Environment Matrix</h2>
+<p>Tests run in one of four environments. The same browser build (latest Chrome stable) serves as the reference; cross-browser sweeps are P2 and noted per-scenario where they matter.</p>
+
+<table>
+  <thead><tr><th>Environment</th><th>Purpose</th><th>Access method</th><th>Auth path</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Localhost loopback</strong></td>
+      <td>Host-side smoke runs. Exercises the loopback-bypass branch and the <code>Host (local)</code> sentinel author.</td>
+      <td><code>http://127.0.0.1:&lt;port&gt;/view/&lt;scenario&gt;/&lt;doc&gt;.html</code> after <code>plan_serve_dashboard</code>.</td>
+      <td>No login form; server sees <code>req.socket.remoteAddress</code> as loopback and assigns <code>role: host</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>Devtunnel (reviewer)</strong></td>
+      <td>The primary production path: a reviewer on a different machine, authenticated via the per-share password, writing comments.</td>
+      <td>Tunnel URL from <code>plan_share</code>; cookie set after login form.</td>
+      <td>Password + display name form; server stamps <code>req.user.name</code>, <code>role: "reviewer"</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>Devtunnel (host session upgrade)</strong></td>
+      <td>Rare but real: the host is mobile, authenticates through the tunnel, and must see the two-button composer (Reply + Request update).</td>
+      <td>Same tunnel URL, password login, plus a server-side role flag (e.g. <code>plan_share --host-name alice</code>).</td>
+      <td>Login + flagged display name; server assigns <code>role: "host"</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>Offline (laptop lid closed)</strong></td>
+      <td>Draft durability under network flap. Simulates tunnel dropout by closing the laptop mid-compose or throttling DevTools to <em>Offline</em>.</td>
+      <td>Devtunnel URL, then simulate disconnect; draft restore on reload.</td>
+      <td>Existing session cookie; reauth on expiry.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Fixture data: a fresh scenario <code>test-cmt-e2e</code> with one pre-generated <code>design.html</code> containing exactly three <code>[data-section-id]</code> ancestors (§1, §2, §3) and one code block. Seeded <code>.comments/design.jsonl</code> carries five lines for pagination / regen checks; empty-state cases use a new doc with zero comments.</p>
+
+<!-- ============ 3. PERSONAS ============ -->
+<h2 id="personas">3. Personas</h2>
+
+<div class="card">
+  <h4 style="margin-top:0;">Host / Author &mdash; &ldquo;Ava&rdquo;</h4>
+  <p><strong>Mental model:</strong> runs plan-harness from VS Code; owns the scenario; treats comments as the inbox for the doc she wrote. Confident with keyboard shortcuts and expects reviews to reduce to actionable diffs.</p>
+  <p><strong>Capability tier:</strong> technical; knows the filesystem layout under <code>plans/&lt;scenario&gt;/</code>; will grep JSONL if she suspects a bug.</p>
+  <p><strong>Likely errors:</strong> triggers <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> by muscle memory intending Reply; expects <em>Request update</em> to always fire synchronously and gets confused by <code>passive</code> mode on first run. Assumes loopback bypass works while tunneled (it does not).</p>
+</div>
+
+<div class="card">
+  <h4 style="margin-top:0;">Reviewer &mdash; &ldquo;Raj&rdquo;</h4>
+  <p><strong>Mental model:</strong> opens a link a teammate pasted in chat, logs in with a display name and a password dropped in the message. Expects the feel of Notion / Google Docs / Hypothesis: select, comment, move on.</p>
+  <p><strong>Capability tier:</strong> non-technical from the plugin&rsquo;s perspective &mdash; may be a designer, PM, or SME. Does not know what JSONL is. Will close the tab if the first comment takes longer than 30 seconds.</p>
+  <p><strong>Likely errors:</strong> forgets to select before clicking (no button appears, gives up); types in the wrong browser tab after context-switching; loses a draft by hitting <kbd>Esc</kbd> and expects auto-save.</p>
+</div>
+
+<div class="card">
+  <h4 style="margin-top:0;">Agent persona &mdash; &ldquo;Writer subagent&rdquo; <span class="badge badge-purple">future-ready</span></h4>
+  <p><strong>Mental model:</strong> invoked by <code>/plan-revise</code> or by the active-mode dispatcher. Receives <code>{ anchor, exact, body }</code> context and writes a unified diff into <code>.comments/&lt;doc&gt;.proposals/&lt;cmtId&gt;.diff</code>.</p>
+  <p><strong>Capability tier:</strong> deterministic per prompt; no UI interaction. Failures show as a stuck <em>Dispatched</em> chip rather than a crashed page.</p>
+  <p><strong>Likely errors:</strong> proposes a diff whose target span drifted since dispatch (anchor mismatch on apply); writes a diff that would alter an unrelated section; runs beyond the 3-concurrent-per-scenario cap.</p>
+</div>
+
+<!-- ============ 4. GOLDEN PATH ============ -->
+<h2 id="golden-path">4. Golden-Path Scenarios <span class="badge badge-red">P0</span></h2>
+<p>Six narrative scenarios that, passed together, mean the core value prop ships. Each opens by default so a dry-run can be done top-to-bottom.</p>
+
+<details open id="e2e-1">
+  <summary><span class="sc-id">E2E-1</span> Reviewer leaves the first comment on an empty doc <span class="sc-meta"><span class="badge badge-red">P0</span><span class="badge badge-blue">devtunnel</span></span></summary>
+  <div class="body">
+    <h4>Goal</h4>
+    <p>Confirm TTFC p50 &lt; 30s, empty-state discoverability, and attribution integrity for a brand-new reviewer.</p>
+    <h4>Preconditions</h4>
+    <ul>
+      <li>Fresh scenario <code>test-cmt-e2e</code>, <code>.comments/design.jsonl</code> does not exist.</li>
+      <li><code>plan_share</code> active; reviewer has URL + password in a chat message.</li>
+      <li>Host is NOT watching the page (isolates reviewer discoverability).</li>
+    </ul>
+    <h4>Steps</h4>
+    <ol>
+      <li>Reviewer clicks tunnel URL; login form renders; types display name <code>Raj</code> + password.</li>
+      <li>Login redirects to the target plan doc. First-visit tooltip appears near the doc body: <em>&ldquo;Select any text to comment&rdquo;</em>.</li>
+      <li>Reviewer drags across a sentence inside §2; within 150&nbsp;ms a floating Comment button renders at the selection end.</li>
+      <li>Reviewer clicks the button; right-side panel slides in (~380&nbsp;px), composer takes focus, the selected span is highlighted with <code>&lt;mark&gt;</code>.</li>
+      <li>Reviewer types <em>&ldquo;This conflates two concepts&rdquo;</em> and hits <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.</li>
+      <li>Thread card appears in the sidebar with author <em>Raj</em>, relative timestamp, and the unresolved indicator; empty-state card disappears.</li>
+    </ol>
+    <h4>Expected outcome</h4>
+    <p>Sticky doc pill now reads <em>1 unresolved</em>. The sidebar TODO panel remains empty (this is a comment, not a TODO). The reviewer experiences at most one mouse gesture + one keystroke sequence between login and posted comment.</p>
+    <h4>Data left behind on disk</h4>
+    <p>One line in <code>plans/test-cmt-e2e/.comments/design.jsonl</code> with server-stamped <code>id</code>, <code>createdAt</code>, <code>author: "Raj"</code>, <code>anchor.sectionId</code> matching the <code>[data-section-id]</code> of §2, non-empty <code>prefix</code>/<code>exact</code>/<code>suffix</code>, <code>intent: "comment"</code>, <code>resolved: false</code>. No proposal directory is created.</p>
+  </div>
+</details>
+
+<details open id="e2e-2">
+  <summary><span class="sc-id">E2E-2</span> Host resolves a thread on loopback <span class="sc-meta"><span class="badge badge-red">P0</span><span class="badge badge-blue">localhost</span></span></summary>
+  <div class="body">
+    <h4>Goal</h4>
+    <p>Confirm resolve semantics (AC-4 interim: host-only), undo window, append-only event append, and SSE broadcast.</p>
+    <h4>Preconditions</h4>
+    <ul>
+      <li>Scenario has one unresolved comment by <em>Raj</em>.</li>
+      <li>Host opens the same doc on <code>http://127.0.0.1:&lt;port&gt;</code>; <code>/api/me</code> returns <code>{ role: "host", name: "Host (local)" }</code>.</li>
+      <li>A second browser tab on the tunnel URL is open as Raj, subscribed to the SSE stream.</li>
+    </ul>
+    <h4>Steps</h4>
+    <ol>
+      <li>Host opens the sidebar and clicks <em>Resolve</em> on Raj&rsquo;s thread.</li>
+      <li>A toast with a 5-second undo countdown appears; the thread visually dims but is not yet collapsed.</li>
+      <li>Host waits the full 5 seconds without clicking Undo.</li>
+      <li>The thread collapses; a <em>Resolved</em> badge replaces the unresolved dot.</li>
+      <li>In Raj&rsquo;s tunnel tab, within 1 second, the SSE event flips the thread to resolved without a page reload.</li>
+    </ol>
+    <h4>Expected outcome</h4>
+    <p>The doc pill unresolved count decrements by 1. The dashboard scenario card unresolved count decrements on next load. Host audit log on stderr emits <code>[comments] PATCH &lt;id&gt; field=resolved value=true actor=Host (local)</code>.</p>
+    <h4>Data left behind on disk</h4>
+    <p>A second JSONL line appended with the same <code>id</code>, <code>resolved: true</code>, server-stamped <code>resolvedBy</code> and <code>resolvedAt</code>. The original comment line is untouched &mdash; last event wins on read.</p>
+  </div>
+</details>
+
+<details open id="e2e-3">
+  <summary><span class="sc-id">E2E-3</span> Reviewer drafts a reply, closes laptop, returns next day <span class="sc-meta"><span class="badge badge-red">P0</span><span class="badge badge-orange">offline</span></span></summary>
+  <div class="body">
+    <h4>Goal</h4>
+    <p>Confirm UC-12: draft persistence under tunnel dropout and composer restoration on reload.</p>
+    <h4>Preconditions</h4>
+    <ul>
+      <li>Reviewer is logged in with a live session cookie.</li>
+      <li>DevTools Network panel available to toggle <em>Offline</em>, or a physical laptop lid closure is acceptable.</li>
+    </ul>
+    <h4>Steps</h4>
+    <ol>
+      <li>Reviewer selects a span in §3, opens the composer, types a 300-char reply.</li>
+      <li>Reviewer toggles DevTools Network to <em>Offline</em> (simulates tunnel drop). Banner appears: <em>&ldquo;You&rsquo;re offline. Drafts saved locally.&rdquo;</em> with <code>role="status" aria-live="polite"</code>.</li>
+      <li>Reviewer hits <kbd>Ctrl</kbd>+<kbd>Enter</kbd>; POST fails; client retries on backoff 1s / 2s / 4s, each failure surfaces in the banner; draft text remains visible.</li>
+      <li>Reviewer closes the tab entirely.</li>
+      <li>24 hours later, reviewer reopens the URL (session cookie still valid), navigates to the same doc.</li>
+      <li>On load, the client scans <code>localStorage</code> keyed by <code>(scenario, doc, anchor)</code>, finds the draft, re-highlights the original selection, and re-opens the composer pre-filled with the 300 chars.</li>
+      <li>Reviewer hits <kbd>Ctrl</kbd>+<kbd>Enter</kbd>; POST succeeds; draft cleared from localStorage.</li>
+    </ol>
+    <h4>Expected outcome</h4>
+    <p>Zero keystrokes lost. Zero silent drops. The re-highlight lands on the exact original span (anchor walker re-runs because the doc may have regenerated).</p>
+    <h4>Data left behind on disk</h4>
+    <p>One new JSONL line on success. localStorage key removed. No proposals, no tombstones.</p>
+  </div>
+</details>
+
+<details open id="e2e-4">
+  <summary><span class="sc-id">E2E-4</span> Doc regenerates, anchors hold under &le;20% section churn <span class="sc-meta"><span class="badge badge-red">P0</span><span class="badge badge-blue">localhost</span></span></summary>
+  <div class="body">
+    <h4>Goal</h4>
+    <p>Confirm AC-3: &ge; 90% re-anchor rate (exact + fuzzy combined) when section IDs are preserved and per-section text churn is under 20%.</p>
+    <h4>Preconditions</h4>
+    <ul>
+      <li>Scenario has 20 comments seeded across three sections with varying <code>exact</code> lengths (8&ndash;120 chars).</li>
+      <li>Host has a modified source that, when rendered, produces the same <code>sectionId</code>s but edits one sentence per section (&lt; 20% delta).</li>
+    </ul>
+    <h4>Steps</h4>
+    <ol>
+      <li>Host runs <code>plan_reanchor test-cmt-e2e design.html</code>.</li>
+      <li>Reanchor cascade runs per comment: exact <code>prefix+exact+suffix</code> within the same <code>sectionId</code>, then section-scoped exact, then Jaccard &ge; 0.72.</li>
+      <li>Host reloads the doc.</li>
+      <li>Each comment card renders a status chip: <em>anchored</em>, <em>fuzzy</em>, or <em>orphaned</em>.</li>
+    </ol>
+    <h4>Expected outcome</h4>
+    <p>At least 18 of 20 comments (&ge; 90%) land as anchored or fuzzy. Orphans &mdash; at most 2 &mdash; appear in the pinned <em>Needs reattachment</em> group at the top of the sidebar with the original <code>exact</code> shown in a <code>&lt;blockquote&gt;</code>. stderr: <code>[comments] reanchor test-cmt-e2e/design held=18 migrated=2 orphaned=2</code> (or similar within &ge; 90% target).</p>
+    <h4>Data left behind on disk</h4>
+    <p>One reanchor event appended per moved comment (<code>migratedFrom</code> captures the previous anchor). No orphan event is written; orphan status is derived on read.</p>
+  </div>
+</details>
+
+<details open id="e2e-5">
+  <summary><span class="sc-id">E2E-5</span> Author requests revise (passive mode) then dispatches via /plan-revise <span class="sc-meta"><span class="badge badge-red">P0</span><span class="badge badge-blue">localhost</span></span></summary>
+  <div class="body">
+    <h4>Goal</h4>
+    <p>Confirm UC-13 and UC-15: end-to-end revise loop with the default <code>reviseMode: "passive"</code>, covering the author-only button gate, JSONL state transitions, and accept-apply safety.</p>
+    <h4>Preconditions</h4>
+    <ul>
+      <li><code>.comment-config.json</code> absent (default passive).</li>
+      <li>Host on loopback; <code>/api/me</code> returns <code>role: "host"</code>; composer submit row shows <strong>Reply</strong> and <strong>Request update</strong> buttons.</li>
+      <li>A reviewer account is NOT open concurrently (isolates the host path).</li>
+    </ul>
+    <h4>Steps</h4>
+    <ol>
+      <li>Host selects a sentence in §3 of <code>design.html</code>.</li>
+      <li>Host types <em>&ldquo;Data model section conflates anchor and section id; please split&rdquo;</em> and clicks <strong>Request update</strong>.</li>
+      <li>Card renders with a <em>Pending dispatch</em> chip and a <em>Dispatch now</em> button.</li>
+      <li>Host exits the browser, runs <code>/plan-revise test-cmt-e2e</code> from the CLI.</li>
+      <li>The skill lists pending comments, calls <code>revise-dispatch</code> per comment; chips flip to <em>Dispatched</em>; each comment hands off to the writer subagent.</li>
+      <li>Writer subagent writes <code>.comments/design.proposals/&lt;cmtId&gt;.diff</code>; server appends a <em>proposed</em> event; SSE pushes the update.</li>
+      <li>Host reopens the browser; the card shows a <em>Proposal ready</em> chip with a notification toast.</li>
+      <li>Host clicks <em>View diff</em>; modal overlay renders unified diff with a live preview; host clicks <em>Accept</em>.</li>
+      <li>Server applies the diff to the source, appends an <em>accepted</em> event, flips <code>resolved: true</code>, broadcasts SSE.</li>
+    </ol>
+    <h4>Expected outcome</h4>
+    <p>The section text visibly changes on next doc load. Card shows <em>Accepted</em> chip + resolved badge. Exactly one durable mutation to the doc source per accepted proposal. Reviewer tabs never see the Request-update button, the proposal chip details, or the diff modal.</p>
+    <h4>Data left behind on disk</h4>
+    <p>JSONL trail: <code>pending</code> &rarr; <code>dispatched</code> &rarr; <code>proposed</code> &rarr; <code>accepted</code> + <code>resolved: true</code> events for the same <code>id</code>. One <code>.diff</code> file preserved under <code>.comments/design.proposals/</code>. Doc source updated at the precise anchor target.</p>
+  </div>
+</details>
+
+<details open id="e2e-6">
+  <summary><span class="sc-id">E2E-6</span> Host reads dashboard badges, drills into unresolved thread <span class="sc-meta"><span class="badge badge-red">P0</span><span class="badge badge-blue">localhost</span></span></summary>
+  <div class="body">
+    <h4>Goal</h4>
+    <p>Confirm UC-3 / UC-8: dashboard-to-doc discoverability. The host should never have to hunt for an unresolved thread.</p>
+    <h4>Preconditions</h4>
+    <ul>
+      <li>Scenario has three docs: one with zero unresolved, one with two unresolved (including one orphan), one with five unresolved.</li>
+      <li>Host&rsquo;s localStorage read cursor is before the most recent comment.</li>
+    </ul>
+    <h4>Steps</h4>
+    <ol>
+      <li>Host opens the dashboard.</li>
+      <li>Scenario card shows <em>+7 new / 7 unresolved</em> (orphans excluded from the badge per design §6.9).</li>
+      <li>Host clicks the scenario; per-doc breakdown lists the three docs with respective counts.</li>
+      <li>Host clicks the doc with 5 unresolved; sidebar auto-opens with threads expanded; first unread is pinned to viewport top with a 1.2-second accent flash.</li>
+      <li>Host reads and does not resolve; closes the tab.</li>
+    </ol>
+    <h4>Expected outcome</h4>
+    <p>On next dashboard visit, the card shows <em>5 unresolved</em> (no &ldquo;new&rdquo; overlay, because the host&rsquo;s read cursor advanced). Orphan count is never part of the badge. Sticky doc pill is keyboard-focusable.</p>
+    <h4>Data left behind on disk</h4>
+    <p>No JSONL writes. Cursor update is localStorage-only (host identity). <code>TODO:</code> confirm cursor key format stabilizes before shipping so multi-device hosts don&rsquo;t get &ldquo;everything new&rdquo; on a second machine.</p>
+  </div>
+</details>
+
+<!-- ============ 5. EDGE & FAILURE ============ -->
+<h2 id="edge-failure">5. Edge &amp; Failure Scenarios <span class="badge badge-yellow">P1</span></h2>
+<p>Eight scenarios that cover the hazards enumerated in <a href="design.html#risks">design §10</a>. Start collapsed; expand when running a targeted suite.</p>
+
+<details id="e2e-7">
+  <summary><span class="sc-id">E2E-7</span> Reviewer hits the rate limit <span class="sc-meta"><span class="badge badge-yellow">P1</span><span class="badge badge-blue">devtunnel</span></span></summary>
+  <div class="body">
+    <h4>Goal</h4>
+    <p>Confirm AC-7 and R-2 mitigation: visible countdown, disabled submit, accurate error code on the wire.</p>
+    <h4>Preconditions</h4>
+    <ul>
+      <li>Server rate limit set to 10 posts / 60s / session.</li>
+      <li>Reviewer has posted 10 comments in the last 55 seconds.</li>
+    </ul>
+    <h4>Steps</h4>
+    <ol>
+      <li>Reviewer selects text and types an 11th comment.</li>
+      <li>Reviewer hits <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.</li>
+      <li>Server returns HTTP <strong>429</strong> with a <code>Retry-After</code> header equal to the remaining window.</li>
+      <li>UI shows an inline error: <em>&ldquo;Slow down &mdash; try again in 7s&rdquo;</em> with a live countdown.</li>
+      <li>Submit button is disabled until the countdown reaches zero; textarea content is preserved.</li>
+      <li>Reviewer waits; submit re-enables at zero; <kbd>Ctrl</kbd>+<kbd>Enter</kbd> now succeeds.</li>
+    </ol>
+    <h4>Expected outcome</h4>
+    <p>No JSONL write during the throttled window. stderr audit emits one <code>[comments] rate-limit sid=... remaining=0s</code> line. No client-side reload required.</p>
+  </div>
+</details>
+
+<details id="e2e-8">
+  <summary><span class="sc-id">E2E-8</span> Path-traversal attempt is rejected at the route layer <span class="sc-meta"><span class="badge badge-yellow">P1</span><span class="badge badge-red">security</span></span></summary>
+  <div class="body">
+    <h4>Goal</h4>
+    <p>Confirm AC-5 and R-3: no read/write outside <code>plans/&lt;scenario&gt;/.comments/</code>, and that the server logs the rejection.</p>
+    <h4>Preconditions</h4>
+    <ul>
+      <li>An authenticated session cookie in hand; <code>curl</code> or similar.</li>
+    </ul>
+    <h4>Steps</h4>
+    <ol>
+      <li>Attacker issues <code>POST /api/comments/..%2F..%2Fetc%2Fpasswd/design</code> with a valid body and cookie.</li>
+      <li>Server response: HTTP <strong>400</strong> with JSON body <code>{ "error": "invalid_scenario", "message": "Scenario name must match ^[a-zA-Z0-9_-]+$" }</code>.</li>
+      <li>Repeat with a backslash variant: <code>POST /api/comments/test/..%5C..%5Csecret</code> &rarr; same 400.</li>
+      <li>Repeat with a URL-encoded null byte: <code>POST /api/comments/test%00/design</code> &rarr; same 400.</li>
+      <li>Repeat with an absolute Windows path fragment: <code>POST /api/comments/test/C%3A%5Cplan</code> &rarr; same 400.</li>
+    </ol>
+    <h4>Expected outcome</h4>
+    <p>No filesystem reads or writes outside the scenario&rsquo;s <code>.comments/</code> directory for any of the four vectors. stderr audit emits <code>[comments] BLOCKED path-traversal param=&lt;raw&gt; ip=&lt;...&gt;</code> per attempt. 400 error message never echoes the unescaped input back into the response body.</p>
+  </div>
+</details>
+
+<details id="e2e-9">
+  <summary><span class="sc-id">E2E-9</span> Concurrent POSTs from 50 reviewers do not interleave <span class="sc-meta"><span class="badge badge-yellow">P1</span><span class="badge badge-blue">devtunnel</span></span></summary>
+  <div class="body">
+    <h4>Goal</h4>
+    <p>Confirm AC-10 and R-4 mitigation: durable append under concurrency, no partial lines, no lost events.</p>
+    <h4>Preconditions</h4>
+    <ul>
+      <li>50 authenticated sessions (script-driven); each holds a distinct <code>author</code>.</li>
+      <li>Target doc is empty of comments.</li>
+    </ul>
+    <h4>Steps</h4>
+    <ol>
+      <li>Script fires 50 parallel <code>POST /api/comments/&lt;scenario&gt;/&lt;doc&gt;</code> requests within a 200-ms window.</li>
+      <li>All 50 responses captured; each expected to be HTTP <strong>201</strong>.</li>
+      <li>Server writes happen under <code>O_APPEND</code> with a per-file mutex and <code>fsync</code>.</li>
+      <li>Script reads back <code>design.jsonl</code> and parses line-by-line with <code>JSON.parse</code>.</li>
+    </ol>
+    <h4>Expected outcome</h4>
+    <p>Exactly 50 valid JSON lines. Zero parse errors (no torn writes). 50 distinct <code>id</code> values. 50 distinct <code>author</code> values as expected. <code>createdAt</code> monotonic non-decreasing.</p>
+  </div>
+</details>
+
+<details id="e2e-10">
+  <summary><span class="sc-id">E2E-10</span> Disk-full yields 507, not silent loss <span class="sc-meta"><span class="badge badge-yellow">P1</span><span class="badge badge-red">critical</span></span></summary>
+  <div class="body">
+    <h4>Goal</h4>
+    <p>Confirm AC-15 and R-4: ENOSPC translates to an HTTP <strong>507 Insufficient Storage</strong> plus a clear UI message. A 200 OK without a durable write is a bug, not an optimization.</p>
+    <h4>Preconditions</h4>
+    <ul>
+      <li>Test ramdisk or tmpfs mount capped at 1&nbsp;MB, holding <code>.comments/</code>.</li>
+      <li>Seed <code>design.jsonl</code> with 999&nbsp;KB of valid lines.</li>
+    </ul>
+    <h4>Steps</h4>
+    <ol>
+      <li>Reviewer posts a normal comment.</li>
+      <li>Server attempts <code>appendFile</code>; the underlying <code>write</code> fails with <code>ENOSPC</code>.</li>
+      <li>Server does NOT retain a partial write; any buffered bytes are discarded.</li>
+      <li>Server responds HTTP <strong>507</strong> with JSON body <code>{ "error": "disk_full", "message": "Host is out of disk; comment not saved." }</code>.</li>
+      <li>Client renders an inline error: <em>&ldquo;Couldn&rsquo;t save &mdash; disk full on host&rdquo;</em>; composer content preserved; submit re-enabled after 2s.</li>
+    </ol>
+    <h4>Expected outcome</h4>
+    <p>Zero new JSONL lines. stderr audit: <code>[comments] ENOSPC &lt;scenario&gt;/&lt;doc&gt; author=...</code>. No partial line at end of file. Reading the file with <code>plan_get_files</code> after the failure shows exactly the pre-test state.</p>
+  </div>
+</details>
+
+<details id="e2e-11">
+  <summary><span class="sc-id">E2E-11</span> SSE stream reconnects during a 15-second network flap <span class="sc-meta"><span class="badge badge-yellow">P1</span><span class="badge badge-orange">offline</span></span></summary>
+  <div class="body">
+    <h4>Goal</h4>
+    <p>Confirm the SSE registry survives a transient disconnect; no duplicate events; no missed events after reconnection.</p>
+    <h4>Preconditions</h4>
+    <ul>
+      <li>Reviewer tab A subscribed to SSE on <code>/api/comments/&lt;scenario&gt;/&lt;doc&gt;/events</code>.</li>
+      <li>Reviewer tab B authenticated and ready to post.</li>
+    </ul>
+    <h4>Steps</h4>
+    <ol>
+      <li>In tab A, DevTools Network panel set to <em>Offline</em> for 15 seconds.</li>
+      <li>During the flap, tab B posts two comments; both appear in JSONL with server-assigned ids.</li>
+      <li>Tab A restored to online.</li>
+      <li>EventSource auto-reconnects; client passes <code>Last-Event-Id</code> header.</li>
+      <li>Server replays the two missed events.</li>
+    </ol>
+    <h4>Expected outcome</h4>
+    <p>Tab A&rsquo;s sidebar shows exactly two new thread cards with correct ids and authors. No duplicate cards (ids dedup on render). Sticky pill count increases by 2. stderr: one <code>SSE client disconnected</code> and one <code>SSE client connected</code> pair; no crash.</p>
+    <p><strong>TODO:</strong> confirm <code>Last-Event-Id</code> plumbing in <code>comment-manager.js</code> before this scenario can be run as-is &mdash; design §4 mentions SSE but does not pin the resume protocol.</p>
+  </div>
+</details>
+
+<details id="e2e-12">
+  <summary><span class="sc-id">E2E-12</span> Reviewer attempts revise; server refuses with 403 <span class="sc-meta"><span class="badge badge-yellow">P1</span><span class="badge badge-red">security</span></span></summary>
+  <div class="body">
+    <h4>Goal</h4>
+    <p>Confirm the permission matrix in design §9: a reviewer cannot forge <code>intent: "revise"</code>.</p>
+    <h4>Preconditions</h4>
+    <ul>
+      <li>Reviewer session, <code>role: "reviewer"</code>.</li>
+      <li>Reviewer has a valid anchor for a span in §2.</li>
+    </ul>
+    <h4>Steps</h4>
+    <ol>
+      <li>Reviewer opens DevTools and issues <code>fetch('/api/comments/&lt;scenario&gt;/&lt;doc&gt;', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ anchor, body: 'forge me', intent: 'revise' }) })</code>.</li>
+      <li>Server checks role BEFORE appending; reads the role from the session, not from the body.</li>
+      <li>Response: HTTP <strong>403</strong> with JSON <code>{ "error": "role_required", "message": "Only the host may request an update." }</code>.</li>
+    </ol>
+    <h4>Expected outcome</h4>
+    <p>Zero JSONL writes. No proposal directory created. stderr audit: <code>[comments] BLOCKED intent=revise actor=&lt;reviewer&gt;</code>. The reviewer UI never rendered the button, confirming defense-in-depth: the client had no affordance AND the server re-checks.</p>
+  </div>
+</details>
+
+<details id="e2e-13">
+  <summary><span class="sc-id">E2E-13</span> Edit window expires mid-compose <span class="sc-meta"><span class="badge badge-yellow">P1</span><span class="badge badge-blue">devtunnel</span></span></summary>
+  <div class="body">
+    <h4>Goal</h4>
+    <p>Confirm AC-11: the 10-minute author edit window is enforced server-side, and the UI announces expiry gracefully.</p>
+    <h4>Preconditions</h4>
+    <ul>
+      <li>Reviewer posted a comment at <code>t0</code>.</li>
+      <li>Clock advanced to <code>t0 + 9m 55s</code>; reviewer clicks Edit.</li>
+    </ul>
+    <h4>Steps</h4>
+    <ol>
+      <li>Edit inline editor opens with the original body; focus on the textarea.</li>
+      <li>Reviewer types for 20 seconds (clock is now <code>t0 + 10m 15s</code>).</li>
+      <li>Client sends <code>PATCH /api/comments/&lt;scenario&gt;/&lt;doc&gt;/&lt;id&gt;</code>.</li>
+      <li>Server compares <code>now - createdAt</code> against the 10-minute budget; returns HTTP <strong>403</strong> <code>{ "error": "edit_window_expired" }</code>.</li>
+      <li>UI surfaces an inline message: <em>&ldquo;Edit window closed. Reply to the thread instead.&rdquo;</em> with a <em>Copy draft</em> button so the user doesn&rsquo;t lose the text.</li>
+    </ol>
+    <h4>Expected outcome</h4>
+    <p>Original JSONL line unchanged. No new edit event appended. Draft text is recoverable via <em>Copy draft</em>; no surprise data loss even on a server-side reject.</p>
+  </div>
+</details>
+
+<details id="e2e-14">
+  <summary><span class="sc-id">E2E-14</span> Orphan reattach flow after aggressive regen <span class="sc-meta"><span class="badge badge-yellow">P1</span><span class="badge badge-blue">localhost</span></span></summary>
+  <div class="body">
+    <h4>Goal</h4>
+    <p>Confirm UC-7 / AC-9: a reviewer (any authenticated user) can reattach an orphan by selecting the new target.</p>
+    <h4>Preconditions</h4>
+    <ul>
+      <li>One comment in <code>test-cmt-e2e</code> whose anchor did not survive regen (forced by editing the relevant sentence beyond fuzzy threshold).</li>
+      <li>Pinned <em>Needs reattachment (1)</em> group visible at the top of the sidebar, amber dot.</li>
+    </ul>
+    <h4>Steps</h4>
+    <ol>
+      <li>User clicks the orphan card; original <code>anchor.exact</code> renders in a <code>&lt;blockquote&gt;</code>; sidebar enters <em>Reattach to selection</em> mode with an instruction banner.</li>
+      <li>User selects a new span in the regenerated doc that matches the original intent.</li>
+      <li>User clicks <em>Confirm reattach</em>.</li>
+      <li>Client POSTs a <code>reanchor</code> event with the new <code>prefix</code>/<code>exact</code>/<code>suffix</code> and new <code>sectionId</code>.</li>
+      <li>Server appends the event; orphan group empties; thread card moves back into the sidebar body.</li>
+    </ol>
+    <h4>Expected outcome</h4>
+    <p>Orphan count drops to 0. A new JSONL event carries the updated anchor; the original anchor data is preserved in earlier events (append-only). Alt path: clicking <em>Archive</em> appends an <em>archived</em> event instead; thread hides without a new anchor, and clicking &ldquo;Show archived&rdquo; renders it back.</p>
+  </div>
+</details>
+
+<!-- ============ 6. CROSS-CUTTING ============ -->
+<h2 id="cross-cutting">6. Cross-cutting Concerns</h2>
+
+<h3 id="cc-a11y">Accessibility</h3>
+<p>Checks from UC-10 and AC-8. Run with the browser&rsquo;s OS-native screen reader (NVDA on Windows, VoiceOver on macOS). Target WCAG 2.1 AA.</p>
+<ul>
+  <li><strong>Keyboard-only create:</strong> tab to a section, enter reading mode, select by word with <kbd>Shift</kbd>+arrow, press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd>; composer gains focus; submit with <kbd>Ctrl</kbd>+<kbd>Enter</kbd>; focus returns to selection end on close.</li>
+  <li><strong>SR announcements:</strong> on composer open, SR reads <em>&ldquo;Comment composer, referencing: &lt;selected text&gt;&rdquo;</em>. On successful post, an <code>aria-live="polite"</code> region reads <em>&ldquo;Comment posted by &lt;author&gt;&rdquo;</em>.</li>
+  <li><strong>Focus choreography:</strong> composer open steals focus; sidebar open/close does not. Modal proposal dialog (host) traps focus and returns it to the opening chip on close.</li>
+  <li><strong>Contrast:</strong> highlight color &ge; 3:1 against underlying text background in both themes; sidebar thread card body text &ge; 4.5:1 against <code>var(--surface)</code>.</li>
+</ul>
+
+<h3 id="cc-security">Security</h3>
+<p>Every scenario in §5 that is tagged <span class="badge badge-red">security</span> plus these standing checks:</p>
+<ul>
+  <li><strong>AC-5 sweep:</strong> run the published path-traversal attack list (min: <code>..</code>, <code>../</code>, <code>..%2F</code>, <code>..%5C</code>, absolute paths, null bytes, long names &gt; 80 chars) against all five comment routes and the three revise routes. All must 400 or 403.</li>
+  <li><strong>AC-6 XSS sweep:</strong> post 12-payload list including <code>&lt;img src=x onerror=alert(1)&gt;</code>, <code>&lt;svg onload&gt;</code>, <code>javascript:</code> URIs, broken tag combos, markdown-looking HTML, and CJK full-width variants. All render as escaped text; no alert dialog fires. The same escape applies to <code>author</code> values.</li>
+  <li><strong>CSRF posture:</strong> open a cross-origin page; attempt <code>fetch('/api/comments/...', { method: 'POST', credentials: 'include' })</code>. Browser blocks via <code>SameSite=Strict</code>; no request ever reaches the server. Record the behavior as a baseline for future session flag changes.</li>
+  <li><strong>Session TTL:</strong> force-expire the cookie (rolling TTL from <code>auth.js</code>); next POST returns 401; client redirects to login without data loss (draft retained).</li>
+</ul>
+
+<h3 id="cc-performance">Performance</h3>
+<p>Targets drawn from design §1 Success Metrics.</p>
+<ul>
+  <li><strong>TTFC:</strong> instrument login-submit &rarr; first-comment-201. p50 &lt; 30s, p95 &lt; 90s across a 10-reviewer synthetic cohort.</li>
+  <li><strong>Anchor scan cost:</strong> open a doc with 100 comments; measure <code>SelectionDetector</code> initialization and first-paint-to-all-highlights duration. Target &lt; 200&nbsp;ms on reference hardware; main thread blocked &lt; 50&nbsp;ms any single frame.</li>
+  <li><strong>Reanchor batch:</strong> on a 100-comment doc regenerate, <code>plan_reanchor</code> completes in &lt; 500&nbsp;ms end-to-end. Guards against accidental O(N²) matchers.</li>
+  <li><strong>SSE idle cost:</strong> a connected reviewer sitting for 10 minutes incurs no more than one keepalive round-trip per 30 seconds and no measurable memory growth.</li>
+</ul>
+
+<!-- ============ 7. TRACKER ============ -->
+<h2 id="tracker">7. Priority &amp; Progress Tracker</h2>
+<p>The checklist below is the authoritative coverage gate. The <code>/view</code> sidebar TODO panel surfaces every unchecked line via pattern 2 (<code>&lt;li&gt;[ ] ...&lt;/li&gt;</code>); checked lines render struck-through but still count against coverage.</p>
+
+<table>
+  <thead><tr><th>ID</th><th>Priority</th><th>Scenario</th><th>Owner</th><th>Run-on</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td><a href="#e2e-1">E2E-1</a></td><td><span class="badge badge-red">P0</span></td><td>Reviewer leaves first comment</td><td>Tester</td><td>devtunnel (reviewer)</td><td><span class="badge badge-gray">Not run</span></td></tr>
+    <tr><td><a href="#e2e-2">E2E-2</a></td><td><span class="badge badge-red">P0</span></td><td>Host resolves a thread</td><td>Tester</td><td>localhost</td><td><span class="badge badge-gray">Not run</span></td></tr>
+    <tr><td><a href="#e2e-3">E2E-3</a></td><td><span class="badge badge-red">P0</span></td><td>Offline draft restored on reload</td><td>Tester</td><td>offline</td><td><span class="badge badge-gray">Not run</span></td></tr>
+    <tr><td><a href="#e2e-4">E2E-4</a></td><td><span class="badge badge-red">P0</span></td><td>Anchors hold on regen &le; 20% churn</td><td>Architect + Tester</td><td>localhost</td><td><span class="badge badge-gray">Not run</span></td></tr>
+    <tr><td><a href="#e2e-5">E2E-5</a></td><td><span class="badge badge-red">P0</span></td><td>Passive revise end-to-end accept</td><td>Author + Writer agent</td><td>localhost</td><td><span class="badge badge-gray">Not run</span></td></tr>
+    <tr><td><a href="#e2e-6">E2E-6</a></td><td><span class="badge badge-red">P0</span></td><td>Dashboard &rarr; unresolved drill-in</td><td>Host</td><td>localhost</td><td><span class="badge badge-gray">Not run</span></td></tr>
+    <tr><td><a href="#e2e-7">E2E-7</a></td><td><span class="badge badge-yellow">P1</span></td><td>Rate-limit countdown</td><td>Tester</td><td>devtunnel</td><td><span class="badge badge-gray">Not run</span></td></tr>
+    <tr><td><a href="#e2e-8">E2E-8</a></td><td><span class="badge badge-yellow">P1</span></td><td>Path traversal rejection</td><td>Security</td><td>devtunnel</td><td><span class="badge badge-gray">Not run</span></td></tr>
+    <tr><td><a href="#e2e-9">E2E-9</a></td><td><span class="badge badge-yellow">P1</span></td><td>50-parallel POST durability</td><td>Backend</td><td>devtunnel (scripted)</td><td><span class="badge badge-gray">Not run</span></td></tr>
+    <tr><td><a href="#e2e-10">E2E-10</a></td><td><span class="badge badge-yellow">P1</span></td><td>Disk-full 507 surfacing</td><td>Backend</td><td>localhost (tmpfs)</td><td><span class="badge badge-gray">Not run</span></td></tr>
+    <tr><td><a href="#e2e-11">E2E-11</a></td><td><span class="badge badge-yellow">P1</span></td><td>SSE reconnect, no missed events</td><td>Frontend + Backend</td><td>offline</td><td><span class="badge badge-gray">Not run</span></td></tr>
+    <tr><td><a href="#e2e-12">E2E-12</a></td><td><span class="badge badge-yellow">P1</span></td><td>Reviewer revise forgery &rarr; 403</td><td>Security</td><td>devtunnel</td><td><span class="badge badge-gray">Not run</span></td></tr>
+    <tr><td><a href="#e2e-13">E2E-13</a></td><td><span class="badge badge-yellow">P1</span></td><td>Edit window expires mid-compose</td><td>Tester</td><td>devtunnel</td><td><span class="badge badge-gray">Not run</span></td></tr>
+    <tr><td><a href="#e2e-14">E2E-14</a></td><td><span class="badge badge-yellow">P1</span></td><td>Orphan reattach + archive alt</td><td>Tester</td><td>localhost</td><td><span class="badge badge-gray">Not run</span></td></tr>
+  </tbody>
+</table>
+
+<h4 id="tracker-checklist">Coverage gates (sidebar TODO panel picks these up)</h4>
+<ul class="tracker">
+  <li>[ ] Run E2E-1 on devtunnel and attach TTFC measurement (p50 target &lt; 30s)</li>
+  <li>[ ] Run E2E-2 on localhost; capture SSE broadcast latency to a second tab</li>
+  <li>[ ] Run E2E-3 with a physical laptop-lid-close in addition to DevTools Offline</li>
+  <li>[ ] Run E2E-4 with the final fuzzy threshold picked (Jaccard 0.72 vs Levenshtein 0.85 &mdash; design §2 open decision)</li>
+  <li>[ ] Run E2E-5 end-to-end; confirm writer subagent prompt handles the revise context correctly</li>
+  <li>[ ] Run E2E-6; confirm cursor key format is stable across host devices</li>
+  <li>[ ] Run E2E-7; confirm <code>Retry-After</code> header present and matches the UI countdown</li>
+  <li>[ ] Run E2E-8 with the full path-traversal payload list (min 10 vectors)</li>
+  <li>[ ] Run E2E-9 scripted; parse-back all 50 lines with zero torn writes</li>
+  <li>[ ] Run E2E-10 on a tmpfs mount; confirm no partial-line appears in JSONL after failure</li>
+  <li>[ ] Run E2E-11 after <code>Last-Event-Id</code> replay protocol is pinned (FIXME: design §4 does not yet specify)</li>
+  <li>[ ] Run E2E-12; confirm server log carries the <em>BLOCKED intent=revise</em> line</li>
+  <li>[ ] Run E2E-13; confirm <em>Copy draft</em> button surfaces and copies full body</li>
+  <li>[ ] Run E2E-14 including the Archive alt path, then re-surface via &ldquo;Show archived&rdquo;</li>
+  <li>[ ] A11y pass: NVDA + VoiceOver walkthrough of UC-10 keyboard-only flow</li>
+  <li>[ ] Security pass: 12-payload XSS sweep + 10-vector path traversal sweep</li>
+  <li>[ ] Perf pass: TTFC, anchor-scan, reanchor batch, SSE idle cost on a 100-comment doc</li>
+  <li>[ ] Confirm resolve semantics (AC-4 open decision) before executing E2E-2 for final sign-off</li>
+</ul>
+
+<!-- ============ 8. TRACEABILITY ============ -->
+<h2 id="traceability">8. Traceability Matrix</h2>
+<p>Every acceptance criterion from <a href="design.html#ac-list">design §7</a> maps to one or more scenarios below. Gaps (if any) are called out in the <strong>Coverage gap</strong> column.</p>
+
+<table>
+  <thead><tr><th>AC</th><th>Priority</th><th>Covered by</th><th>Coverage gap</th></tr></thead>
+  <tbody>
+    <tr><td>AC-1 Anchor correctness</td><td><span class="badge badge-red">P0</span></td><td>E2E-1 (disk shape), E2E-4 (re-scan after regen)</td><td>None</td></tr>
+    <tr><td>AC-2 Attribution</td><td><span class="badge badge-red">P0</span></td><td>E2E-1, E2E-12 (server ignores client-supplied fields)</td><td>None</td></tr>
+    <tr><td>AC-3 Re-anchor</td><td><span class="badge badge-red">P0</span></td><td>E2E-4</td><td>Fuzzy threshold decision pending (design §2)</td></tr>
+    <tr><td>AC-4 Resolve semantics</td><td><span class="badge badge-red">P0</span></td><td>E2E-2</td><td>Host-only vs any-auth is still an open decision; scenario assumes host-only interim</td></tr>
+    <tr><td>AC-5 Path traversal</td><td><span class="badge badge-red">P0</span></td><td>E2E-8 plus §6.2 standing sweep</td><td>None</td></tr>
+    <tr><td>AC-6 XSS</td><td><span class="badge badge-red">P0</span></td><td>§6.2 standing sweep (12-payload list)</td><td>None</td></tr>
+    <tr><td>AC-7 Rate limit visible</td><td><span class="badge badge-red">P0</span></td><td>E2E-7</td><td>None</td></tr>
+    <tr><td>AC-8 Keyboard a11y</td><td><span class="badge badge-yellow">P1</span></td><td>§6.1 Accessibility checks</td><td>None</td></tr>
+    <tr><td>AC-9 Orphan UX</td><td><span class="badge badge-yellow">P1</span></td><td>E2E-4 (produces orphans), E2E-14 (reattach)</td><td>None</td></tr>
+    <tr><td>AC-10 Durable append</td><td><span class="badge badge-yellow">P1</span></td><td>E2E-9</td><td>None</td></tr>
+    <tr><td>AC-11 Edit window</td><td><span class="badge badge-yellow">P1</span></td><td>E2E-13</td><td>None</td></tr>
+    <tr><td>AC-12 Theme parity</td><td><span class="badge badge-yellow">P1</span></td><td>§6.1 Accessibility contrast check (light + dark)</td><td>Automated contrast lint would be stronger; manual check suffices for MVP</td></tr>
+    <tr><td>AC-13 Export PDF</td><td><span class="badge badge-purple">P2</span></td><td><em>Intentionally out of this plan</em> &mdash; see §9</td><td>Scope-excluded</td></tr>
+    <tr><td>AC-14 Unread badge</td><td><span class="badge badge-purple">P2</span></td><td>E2E-6 partial (cursor advancement)</td><td>Full &ldquo;+N new&rdquo; overlay across host devices is untested; depends on a stable cursor key format</td></tr>
+    <tr><td>AC-15 Never silent fail</td><td><span class="badge badge-red">P0</span></td><td>E2E-10</td><td>None</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Coverage ratio:</strong> 14 of 15 ACs have a concrete scenario (AC-13 is deferred to §9 out-of-scope). AC-14 has partial coverage via E2E-6; the &ldquo;+N new&rdquo; overlay across multiple host devices remains an explicit gap pending a cursor-key decision.</p>
+
+<!-- ============ 9. NOT IN SCOPE ============ -->
+<h2 id="out-of-scope">9. Not in Scope</h2>
+<p>Deliberate omissions. Revisit when the linked design item promotes from P2 to P0/P1, or when a success metric starts missing.</p>
+<ul>
+  <li><strong>PDF export with margin notes</strong> (UC-9, AC-13). P2 in design §7; will get its own test sub-plan when the pipeline lands.</li>
+  <li><strong>Multi-language comment content.</strong> The MVP stores UTF-8 raw and escapes on render; RTL rendering, language-aware anchoring, and translation are out of scope.</li>
+  <li><strong>Scaling beyond 100 comments per doc.</strong> Design §10 R-10 acknowledges JSONL grows unbounded; 100 comments is the tested upper bound. 1k / 10k / 100k sweeps are reserved for a follow-on perf scenario.</li>
+  <li><strong>Cross-browser matrix beyond Chrome stable.</strong> Firefox, Safari, Edge-specific quirks (Selection API edge cases, SSE reconnect timers) are deferred to a P2 sweep.</li>
+  <li><strong>Agent personas authoring real comments.</strong> Schema supports it; MVP writes are human-only. When an agent persona starts writing, it needs its own trust/attribution scenario.</li>
+  <li><strong>Active-mode concurrency burst &gt; 3 per scenario.</strong> The queue-full banner is specified in UC-14 but its test is reserved for the Phase-5 harness since it requires synthetic agent jobs.</li>
+  <li><strong>PATCH-body edit history UI.</strong> Edits are append-only on disk (AC-11 tested), but a diff-style history viewer is P2 and not part of this plan.</li>
+</ul>
+
+</main>
+
+<script>
+(function() {
+  var KEY = 'plan-harness-theme';
+  var NEXT = { system: 'light', light: 'dark', dark: 'system' };
+  var html = document.documentElement;
+  var toggle = document.getElementById('themeToggle');
+
+  function resolvePref(pref) {
+    if (pref === 'dark') return 'dark';
+    if (pref === 'light') return 'light';
+    return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  function applyPref(pref) {
+    try { localStorage.setItem(KEY, pref); } catch(e) {}
+    html.setAttribute('data-theme', resolvePref(pref));
+    html.setAttribute('data-theme-pref', pref);
+    if (toggle) {
+      toggle.setAttribute('data-theme-pref', pref);
+      toggle.setAttribute('aria-label', 'Theme: ' + pref + ' (click to cycle)');
+      toggle.setAttribute('title', 'Theme: ' + pref + ' -- click to cycle');
+    }
+  }
+
+  var currentPref = (function() { try { return localStorage.getItem(KEY); } catch(e) { return null; } })() || 'system';
+  applyPref(currentPref);
+
+  if (toggle) {
+    toggle.addEventListener('click', function() {
+      var pref = (function() { try { return localStorage.getItem(KEY); } catch(e) { return null; } })() || 'system';
+      applyPref(NEXT[pref] || 'system');
+    });
+  }
+
+  try {
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+      var pref = (function() { try { return localStorage.getItem(KEY); } catch(e) { return null; } })() || 'system';
+      if (pref === 'system') applyPref('system');
+    });
+  } catch(e) {}
+
+  window.addEventListener('storage', function(e) {
+    if (e.key === KEY && e.newValue) applyPref(e.newValue);
+  });
+
+  var navLinks = document.querySelectorAll('.section-nav a[href^="#"]');
+  var sections = [];
+  navLinks.forEach(function(link) {
+    var id = link.getAttribute('href').slice(1);
+    var el = document.getElementById(id);
+    if (el) sections.push({ id: id, el: el, link: link });
+  });
+
+  function updateActive() {
+    var scrollY = window.scrollY + 120;
+    var current = null;
+    for (var i = sections.length - 1; i >= 0; i--) {
+      if (sections[i].el.offsetTop <= scrollY) { current = sections[i]; break; }
+    }
+    navLinks.forEach(function(l) { l.classList.remove('active'); });
+    if (current) current.link.classList.add('active');
+  }
+  window.addEventListener('scroll', updateActive, { passive: true });
+  updateActive();
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>State Machine -- built-in-comment-ui</title>
+<script>
+(function(){
+  try {
+    var KEY='plan-harness-theme';
+    var pref=localStorage.getItem(KEY)||'system';
+    var dark=pref==='dark'||(pref==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.setAttribute('data-theme', dark?'dark':'light');
+    document.documentElement.setAttribute('data-theme-pref', pref);
+  } catch(e) {}
+})();
+</script>
+<style>
+/* Palette inspired by Linear (see plan-harness/DESIGN.md). */
+:root {
+  --bg: #f7f8f8; --surface: #f3f4f5; --border: #d0d6e0;
+  --text: #08090a; --muted: #62666d; --accent: #5e6ad2;
+  --green: #1a7f37; --red: #cf222e; --yellow: #9a6700; --purple: #7170ff;
+  --orange: #b35200;
+  --code-bg: #eeeff1;
+  --svg-bg: #f3f4f5; --svg-bg2: #f7f8f8; --svg-text: #08090a;
+  --svg-muted: #62666d; --svg-border: #d0d6e0;
+  --even-row-bg: rgba(243,244,245,0.7);
+  --badge-green-bg: rgba(26,127,55,0.1); --badge-yellow-bg: rgba(154,103,0,0.1);
+  --badge-red-bg: rgba(207,34,46,0.1); --badge-blue-bg: rgba(94,106,210,0.1);
+  --badge-purple-bg: rgba(113,112,255,0.1);
+  --badge-orange-bg: rgba(179,82,0,0.1);
+  --shadow: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.08);
+  --radius: 8px;
+  --radius-sm: 4px;
+  --font-ui: 'Inter Variable', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Berkeley Mono', 'Cascadia Code', 'Fira Code', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font-features: "cv01", "ss03";
+}
+[data-theme="dark"] {
+  --bg: #08090a; --surface: #0f1011; --border: rgba(255,255,255,0.08);
+  --text: #f7f8f8; --muted: #8a8f98; --accent: #7170ff;
+  --green: #27a644; --red: #f85149; --yellow: #d29922; --purple: #828fff;
+  --orange: #e3934a;
+  --code-bg: #141516;
+  --svg-bg: #0f1011; --svg-bg2: #08090a; --svg-text: #f7f8f8;
+  --svg-muted: #8a8f98; --svg-border: rgba(255,255,255,0.08);
+  --even-row-bg: rgba(25,26,27,0.5);
+  --badge-green-bg: rgba(39,166,68,0.15); --badge-yellow-bg: rgba(210,153,34,0.15);
+  --badge-red-bg: rgba(248,81,73,0.15); --badge-blue-bg: rgba(113,112,255,0.15);
+  --badge-purple-bg: rgba(130,143,255,0.15);
+  --badge-orange-bg: rgba(227,147,74,0.15);
+  --shadow: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; font-feature-settings: var(--font-features); }
+body {
+  font-family: var(--font-ui); background: var(--bg); color: var(--text);
+  line-height: 1.6; font-weight: 400; letter-spacing: -0.01em;
+  transition: background-color 0.2s, color 0.2s;
+  padding-left: 260px; padding-top: 3rem;
+}
+code, pre, kbd, samp { font-family: var(--font-mono); }
+
+/* Typography -- Linear-inspired */
+h1 { font-size: 2rem; font-weight: 510; letter-spacing: -0.02em; border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; margin-bottom: 0.4rem; }
+h2 { font-size: 1.5rem; font-weight: 510; letter-spacing: -0.015em; color: var(--accent); margin-top: 3rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; scroll-margin-top: 1rem; }
+h3 { font-size: 1.15rem; font-weight: 590; letter-spacing: -0.01em; color: var(--purple); margin-top: 2rem; margin-bottom: 0.7rem; }
+h4 { font-size: 1rem; font-weight: 590; color: var(--green); margin-top: 1.5rem; margin-bottom: 0.5rem; }
+p, li { color: var(--text); margin-bottom: 0.5rem; }
+ul, ol { padding-left: 1.5rem; margin-bottom: 1rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.meta { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.2rem; }
+
+/* Plan tabs */
+.plan-tabs { display: flex; gap: 0.15rem; border-bottom: 1px solid var(--border); margin-bottom: 1.8rem; overflow-x: auto; scrollbar-width: none; }
+.plan-tabs::-webkit-scrollbar { display: none; }
+.plan-tabs a { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.55rem 0.85rem; font-size: 0.87rem; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; transition: color 0.15s, border-color 0.15s; font-weight: 510; }
+.plan-tabs a:hover:not([aria-disabled="true"]) { color: var(--text); }
+.plan-tabs a.active { color: var(--accent); border-bottom-color: var(--accent); }
+.plan-tabs a[aria-disabled="true"] { opacity: 0.5; cursor: default; }
+.plan-tabs .soon { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.12em 0.45em; border-radius: 10px; background: var(--code-bg); color: var(--muted); border: 1px solid var(--border); font-weight: 510; }
+
+/* Theme toggle */
+.theme-toggle {
+  position: fixed; top: 1rem; right: 1.5rem; z-index: 10000;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.45rem 0.55rem; cursor: pointer; color: var(--text);
+  transition: background 0.2s, border-color 0.2s;
+  display: flex; align-items: center; justify-content: center; width: 36px; height: 36px;
+}
+.theme-toggle:hover { border-color: var(--accent); }
+.theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.theme-toggle svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.theme-toggle svg[data-theme-icon] { display: none; }
+.theme-toggle[data-theme-pref="system"] svg[data-theme-icon="system"],
+.theme-toggle[data-theme-pref="light"]  svg[data-theme-icon="light"],
+.theme-toggle[data-theme-pref="dark"]   svg[data-theme-icon="dark"] { display: block; }
+
+/* Sidebar */
+.side-nav {
+  position: fixed; top: 0; left: 0; width: 260px; height: 100vh;
+  background: var(--surface); border-right: 1px solid var(--border);
+  overflow-y: auto; z-index: 998; padding: 0;
+  display: flex; flex-direction: column;
+}
+.section-nav { padding: 4rem 0 0.6rem; overflow-y: auto; flex: 1; }
+.section-nav .group-label + a { margin-top: 0.15rem; }
+.section-nav .group-label {
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--muted); padding: 0.3rem 1rem 0.3rem;
+}
+.section-nav a {
+  display: block; padding: 0.3rem 1rem; font-size: 0.8rem; color: var(--muted);
+  text-decoration: none; border-left: 3px solid transparent;
+}
+.section-nav a:hover { color: var(--text); background: var(--bg); }
+.section-nav a.active { color: var(--accent); border-left-color: var(--accent); background: var(--bg); font-weight: 510; }
+.section-nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.section-nav a.sub { padding-left: 1.8rem; font-size: 0.76rem; }
+
+/* Main content */
+.container { max-width: 1060px; margin: 0 auto; padding: 1rem 2.5rem 5rem; }
+
+code {
+  background: var(--code-bg); padding: 0.12em 0.4em; border-radius: 4px;
+  font-size: 0.88em; color: var(--yellow);
+}
+pre {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.9rem 1rem; overflow-x: auto; margin: 0.8rem 0; font-size: 0.82rem;
+  line-height: 1.55; color: var(--text);
+}
+pre code { background: transparent; padding: 0; color: inherit; font-size: inherit; }
+
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+thead th {
+  background: var(--surface); color: var(--accent);
+  text-align: left; padding: 0.55rem 0.8rem; border: 1px solid var(--border); font-weight: 600;
+}
+td { padding: 0.5rem 0.8rem; border: 1px solid var(--border); vertical-align: top; }
+tbody tr:nth-child(even) { background: var(--even-row-bg); }
+
+/* Badges */
+.badge { display: inline-block; padding: 0.13em 0.55em; border-radius: 12px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+.badge-green { background: var(--badge-green-bg); color: var(--green); border: 1px solid var(--green); }
+.badge-yellow { background: var(--badge-yellow-bg); color: var(--yellow); border: 1px solid var(--yellow); }
+.badge-red { background: var(--badge-red-bg); color: var(--red); border: 1px solid var(--red); }
+.badge-blue { background: var(--badge-blue-bg); color: var(--accent); border: 1px solid var(--accent); }
+.badge-purple { background: var(--badge-purple-bg); color: var(--purple); border: 1px solid var(--purple); }
+.badge-orange { background: var(--badge-orange-bg); color: var(--orange); border: 1px solid var(--orange); }
+.badge-gray { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+
+/* Callouts */
+.callout { border-left: 4px solid var(--accent); background: var(--surface); padding: 1rem 1.2rem; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+.callout-warn { border-left-color: var(--yellow); }
+.callout-important { border-left-color: var(--red); }
+.callout-decision { border-left-color: var(--purple); }
+.callout-title { font-weight: 700; margin-bottom: 0.3rem; color: var(--text); display: flex; align-items: center; gap: 0.5rem; }
+
+/* Diagram container */
+.diagram { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin: 1.2rem 0; text-align: center; }
+.diagram svg { display: block; margin: 0 auto; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); max-width: 100%; height: auto; }
+.diagram .caption { margin-top: 0.6rem; color: var(--muted); font-size: 0.85rem; font-style: italic; }
+
+/* Entity header cards */
+.entity-head {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.9rem 1.1rem; margin: 0.6rem 0 1rem;
+  display: flex; gap: 0.9rem; align-items: flex-start; flex-wrap: wrap;
+}
+.entity-head .label { font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.entity-head p { flex: 1 1 360px; min-width: 0; margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+/* Legend */
+.legend { display: flex; gap: 1rem; flex-wrap: wrap; margin: 0.4rem 0 0.8rem; font-size: 0.82rem; color: var(--muted); }
+.legend-item { display: inline-flex; align-items: center; gap: 0.45rem; }
+.legend-swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--border); display: inline-block; }
+
+/* Keyboard key */
+kbd {
+  display: inline-block; padding: 0.1em 0.45em; border: 1px solid var(--border); border-bottom-width: 2px;
+  border-radius: 4px; background: var(--code-bg); color: var(--text);
+  font-size: 0.8rem;
+}
+
+/* todo callout */
+.todo { border-left: 4px solid var(--yellow); background: var(--badge-yellow-bg); padding: 0.8rem 1rem; margin: 0.9rem 0; border-radius: 0 6px 6px 0; }
+.todo strong { color: var(--yellow); }
+
+/* Responsive */
+@media (max-width: 768px) {
+  body { padding-left: 0; }
+  .side-nav {
+    position: static; width: 100%; height: auto; border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-nav { display: none; }
+  .container { padding: 1.2rem 1.2rem 3rem; }
+}
+
+/* Print */
+@media print {
+  body { padding-left: 0; padding-top: 0; background: #fff; color: #000; }
+  .side-nav, .theme-toggle { display: none !important; }
+  .container { max-width: 100%; padding: 0; }
+  h1, h2, h3, h4 { color: #000; }
+  h2 { border-bottom: 1px solid #666; }
+  h1 { border-bottom: 2px solid #000; }
+  .badge { border: 1px solid #999; color: #000 !important; background: #eee !important; }
+  pre, code { background: #f4f4f4 !important; color: #000 !important; border-color: #ccc !important; }
+  .callout, .diagram, .entity-head, .todo { border-color: #ccc; background: #fff; break-inside: avoid; }
+  .diagram svg { border-color: #999; background: #fff; }
+  table, tr, td, th { page-break-inside: avoid; }
+  thead th { background: #eee !important; color: #000 !important; }
+  a { color: #000; text-decoration: underline; }
+}
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle" type="button" aria-label="Theme (click to cycle: system, light, dark)" title="Theme -- click to cycle">
+  <svg data-theme-icon="system" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  <svg data-theme-icon="light" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  <svg data-theme-icon="dark" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+</button>
+
+<nav class="side-nav" aria-label="Plan navigation">
+  <div class="section-nav" aria-label="Sections">
+    <div class="group-label">On this page</div>
+    <a href="#overview">1. Overview</a>
+    <a href="#conventions">2. Conventions &amp; Legend</a>
+    <a href="#comment-fsm">3. Comment Lifecycle</a>
+    <a href="#comment-fsm" class="sub">3.1 States &amp; Diagram</a>
+    <a href="#comment-transitions" class="sub">3.2 Transition Table</a>
+    <a href="#comment-invariants" class="sub">3.3 Invariants</a>
+    <a href="#comment-edges" class="sub">3.4 Open Questions</a>
+    <a href="#revise-fsm">4. Revise-Intent Lifecycle</a>
+    <a href="#revise-fsm" class="sub">4.1 States &amp; Diagram</a>
+    <a href="#revise-transitions" class="sub">4.2 Transition Table</a>
+    <a href="#revise-invariants" class="sub">4.3 Invariants</a>
+    <a href="#revise-edges" class="sub">4.4 Open Questions</a>
+    <a href="#anchor-fsm">5. Anchor Re-Anchor Cascade</a>
+    <a href="#anchor-fsm" class="sub">5.1 States &amp; Diagram</a>
+    <a href="#anchor-transitions" class="sub">5.2 Transition Table</a>
+    <a href="#anchor-invariants" class="sub">5.3 Invariants</a>
+    <a href="#anchor-edges" class="sub">5.4 Open Questions</a>
+    <a href="#session-fsm">6. Session Lifecycle</a>
+    <a href="#session-fsm" class="sub">6.1 States &amp; Diagram</a>
+    <a href="#session-transitions" class="sub">6.2 Transition Table</a>
+    <a href="#session-invariants" class="sub">6.3 Invariants</a>
+    <a href="#session-edges" class="sub">6.4 Open Questions</a>
+    <a href="#sse-fsm">7. SSE Client Lifecycle</a>
+    <a href="#sse-fsm" class="sub">7.1 States &amp; Diagram</a>
+    <a href="#sse-transitions" class="sub">7.2 Transition Table</a>
+    <a href="#sse-invariants" class="sub">7.3 Invariants</a>
+    <a href="#sse-edges" class="sub">7.4 Open Questions</a>
+    <a href="#bucket-fsm">8. Rate-Limit Bucket</a>
+    <a href="#bucket-fsm" class="sub">8.1 States &amp; Diagram</a>
+    <a href="#bucket-transitions" class="sub">8.2 Transition Table</a>
+    <a href="#bucket-invariants" class="sub">8.3 Invariants</a>
+    <a href="#bucket-edges" class="sub">8.4 Open Questions</a>
+    <a href="#cross-entity">9. Cross-Entity Invariants</a>
+  </div>
+</nav>
+
+<main class="container">
+<nav class="plan-tabs" aria-label="Plan documents">
+  <a href="design.html">Design</a>
+  <a href="test-plan.html">Test Plan</a>
+  <a href="state-machine.html" class="active" aria-current="page">State Machine</a>
+  <a href="test-cases.html" aria-disabled="true">Test Cases <span class="soon">soon</span></a>
+  <a href="implementation-plan.html" aria-disabled="true">Implementation <span class="soon">soon</span></a>
+</nav>
+
+<h1>State Machine: built-in-comment-ui</h1>
+<p class="meta">
+  Scenario: <code>built-in-comment-ui</code> &middot; Plugin: <code>plan-harness</code> &middot;
+  <span class="badge badge-blue">collaboration</span>
+  <span class="badge badge-purple">review</span>
+  <span class="badge badge-green">event-sourced</span>
+</p>
+
+<!-- ============ 1. OVERVIEW ============ -->
+<h2 id="overview">1. Overview</h2>
+<p>The comment system is <strong>event-sourced</strong>: every user-visible mutation is an append-only JSONL line (see <a href="design.html#data-storage">Design &sect;3 Storage Layout</a>). "State" therefore is always a <em>fold</em> over an ordered event stream &mdash; the last event of a given kind wins on read. This document enumerates every entity in the design whose fold has more than one possible value, pins down the transitions that produce those values, and lists the invariants that must hold at any fold.</p>
+
+<p>Six state machines are in scope:</p>
+<table>
+  <thead><tr><th>#</th><th>Entity</th><th>Source of truth</th><th>Why the state matters</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><a href="#comment-fsm">Comment</a></td><td>JSONL event log</td><td>Drives what reviewers see: visible / resolved / hidden; gates which mutations the API accepts next.</td></tr>
+    <tr><td>2</td><td><a href="#revise-fsm">Comment.intent="revise"</a></td><td>JSONL event log (<code>reviseStatus</code> events)</td><td>Separate lifecycle for agent-assisted edits; gates when a diff is writable and when it can be applied.</td></tr>
+    <tr><td>3</td><td><a href="#anchor-fsm">Anchor</a></td><td>Re-anchor cascade output</td><td>Determines whether the highlight still binds to real text or floats in the orphan bucket.</td></tr>
+    <tr><td>4</td><td><a href="#session-fsm">Session</a> (<code>auth.js</code>)</td><td>In-memory <code>Map</code> + HMAC cookie</td><td>Every mutation above checks the session first. Expired or revoked sessions must cleanly reject, not leak.</td></tr>
+    <tr><td>5</td><td><a href="#sse-fsm">SSE client</a></td><td>In-memory <code>Map&lt;docKey, Set&lt;Response&gt;&gt;</code></td><td>A disconnected client must not silently miss events; auto-reconnect behaviour is part of the contract.</td></tr>
+    <tr><td>6</td><td><a href="#bucket-fsm">Rate-limit bucket</a></td><td>In-memory <code>Map&lt;sid, { tokens, lastRefill }&gt;</code></td><td>Token bucket protects disk and keeps the devtunnel honest; states drive 429 vs 201 responses.</td></tr>
+  </tbody>
+</table>
+
+<!-- ============ 2. CONVENTIONS ============ -->
+<h2 id="conventions">2. Conventions &amp; Legend</h2>
+<p>Every diagram below uses the same visual grammar. Colour follows the Linear palette from <a href="design.html#ux-theme">Design &sect;6 Theme Parity</a>: <code>var(--accent)</code> for normal transitions, <code>var(--green)</code> for terminal/successful outcomes, <code>var(--yellow)</code> for degraded but recoverable, <code>var(--red)</code> for error / terminal failure, <code>var(--muted)</code> for auto/timer-driven transitions. Every state label is reachable from the start node; the lone exception is a labelled <em>must-not-happen</em> dotted edge, which is drawn explicitly to prove the <em>tester</em> has a negative case for it.</p>
+
+<div class="legend" aria-label="State diagram legend">
+  <span class="legend-item"><span class="legend-swatch" style="background:var(--accent)"></span> normal transition</span>
+  <span class="legend-item"><span class="legend-swatch" style="background:var(--green)"></span> success / terminal ok</span>
+  <span class="legend-item"><span class="legend-swatch" style="background:var(--yellow)"></span> degraded / retryable</span>
+  <span class="legend-item"><span class="legend-swatch" style="background:var(--red)"></span> error / terminal fail</span>
+  <span class="legend-item"><span class="legend-swatch" style="background:var(--muted)"></span> auto / timer</span>
+</div>
+
+<p><strong>Transition table format:</strong> <code>From | Event | Guard | To | Side effects</code>. The <em>Event</em> column names an API route, SSE payload, or timer; the <em>Guard</em> column names the condition that must hold for the transition to fire (e.g. <code>actor.id === comment.author</code>); <em>Side effects</em> lists every durable or observable consequence (JSONL line appended, SSE broadcast fired, stderr audit line, etc.).</p>
+
+<p><strong>Empty / no-op transitions:</strong> a table row with a red "guard fails" badge means the event is received but the guard rejects it. The only permitted observable effect in that row is an HTTP error response &mdash; never a log line, never a JSONL append, never a state change. This is captured once here and referenced (not repeated) per-entity.</p>
+
+<!-- ============ 3. COMMENT FSM ============ -->
+<h2 id="comment-fsm">3. Comment Lifecycle</h2>
+
+<div class="entity-head">
+  <div><span class="label">Entity</span>
+    <div style="font-weight:590; color:var(--text); font-size:1.05rem;">Comment</div>
+  </div>
+  <p>A comment starts life as a pure client-side draft, becomes an <code>id</code>-bearing JSONL line once the server accepts the <code>POST</code>, then accrues further events (edit, resolve, unresolve, delete). Because every event is append-only, "state" here is the fold of the latest relevant event. Orphan status is an <em>orthogonal</em> flag set by the re-anchor cascade (see <a href="#anchor-fsm">&sect;5</a>) and can toggle on any non-<code>deleted</code> comment.</p>
+</div>
+
+<h3 id="comment-diagram">3.1 States &amp; Diagram</h3>
+<p>Primary states: <code>draft</code> (client only, never on disk), <code>posted</code> (JSONL line present, <code>resolved=false, deleted=false</code>), <code>edited</code> (latest event has a new <code>body</code> from the author within the edit window), <code>resolved</code> (latest fold has <code>resolved=true</code>), <code>unresolved</code> (resolved then un-resolved &mdash; a fresh <code>resolved=false</code> event appears after a <code>resolved=true</code>), <code>deleted</code> (soft-delete marker present &mdash; terminal for the primary axis). The <em>orphan</em> flag is drawn as a dotted orthogonal lane.</p>
+
+<div class="diagram">
+  <svg width="820" height="440" viewBox="0 0 820 440" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="c-fsm-t c-fsm-d">
+    <title id="c-fsm-t">Comment state machine</title>
+    <desc id="c-fsm-d">A comment starts as a client-only draft, transitions to posted on 201, can be edited, toggled between resolved and unresolved, and soft-deleted. Delete is terminal. An orthogonal orphan flag can toggle on any non-deleted state.</desc>
+
+    <defs>
+      <marker id="c-arr-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)"/></marker>
+      <marker id="c-arr-g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--green)"/></marker>
+      <marker id="c-arr-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--red)"/></marker>
+      <marker id="c-arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--muted)"/></marker>
+      <marker id="c-arr-y" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--yellow)"/></marker>
+    </defs>
+
+    <!-- Start dot -->
+    <circle cx="40" cy="80" r="8" fill="var(--muted)" stroke="var(--svg-border)" stroke-width="1.5"/>
+    <text x="40" y="60" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">start</text>
+
+    <!-- draft -->
+    <rect x="90" y="55" width="120" height="50" rx="10" fill="var(--svg-bg)" stroke="var(--accent)" stroke-width="1.8"/>
+    <text x="150" y="80" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">draft</text>
+    <text x="150" y="96" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">client only (localStorage)</text>
+
+    <!-- posted -->
+    <rect x="290" y="55" width="140" height="50" rx="10" fill="var(--svg-bg)" stroke="var(--green)" stroke-width="1.8"/>
+    <text x="360" y="80" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">posted</text>
+    <text x="360" y="96" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">JSONL line exists</text>
+
+    <!-- edited -->
+    <rect x="510" y="55" width="140" height="50" rx="10" fill="var(--svg-bg)" stroke="var(--accent)" stroke-width="1.8"/>
+    <text x="580" y="80" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">edited</text>
+    <text x="580" y="96" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">editedAt set</text>
+
+    <!-- resolved -->
+    <rect x="290" y="180" width="140" height="50" rx="10" fill="var(--svg-bg)" stroke="var(--green)" stroke-width="1.8"/>
+    <text x="360" y="205" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">resolved</text>
+    <text x="360" y="221" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">resolved=true (latest)</text>
+
+    <!-- unresolved -->
+    <rect x="510" y="180" width="140" height="50" rx="10" fill="var(--svg-bg)" stroke="var(--accent)" stroke-width="1.8"/>
+    <text x="580" y="205" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">unresolved</text>
+    <text x="580" y="221" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">resolved=false after true</text>
+
+    <!-- deleted -->
+    <rect x="290" y="310" width="140" height="50" rx="10" fill="var(--svg-bg)" stroke="var(--red)" stroke-width="2"/>
+    <text x="360" y="335" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">deleted</text>
+    <text x="360" y="351" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">terminal (soft-delete)</text>
+
+    <!-- orphan lane (orthogonal) -->
+    <rect x="510" y="310" width="200" height="60" rx="10" fill="var(--svg-bg)" stroke="var(--yellow)" stroke-width="1.5" stroke-dasharray="5,3"/>
+    <text x="610" y="333" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">orphan (flag)</text>
+    <text x="610" y="350" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">orthogonal; toggles on regen</text>
+    <text x="610" y="363" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">for any non-deleted comment</text>
+
+    <!-- Arrows -->
+    <!-- start -> draft -->
+    <line x1="52" y1="80" x2="86" y2="80" stroke="var(--muted)" stroke-width="1.8" marker-end="url(#c-arr-m)"/>
+    <!-- draft -> posted -->
+    <line x1="210" y1="80" x2="286" y2="80" stroke="var(--green)" stroke-width="1.8" marker-end="url(#c-arr-g)"/>
+    <text x="248" y="72" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="10">POST 201</text>
+    <!-- draft self (save draft) -->
+    <path d="M 110 55 Q 90 25 150 25 Q 210 25 190 55" stroke="var(--muted)" stroke-width="1.4" fill="none" marker-end="url(#c-arr-m)" stroke-dasharray="4,2"/>
+    <text x="150" y="20" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">auto-save localStorage</text>
+
+    <!-- posted -> edited -->
+    <line x1="430" y1="75" x2="506" y2="75" stroke="var(--accent)" stroke-width="1.8" marker-end="url(#c-arr-a)"/>
+    <text x="468" y="67" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="10">PATCH body (author)</text>
+    <!-- edited -> posted (doesn't revert; label shows edited is the new posted) -->
+    <line x1="506" y1="90" x2="430" y2="90" stroke="var(--accent)" stroke-width="1.4" stroke-dasharray="4,2" marker-end="url(#c-arr-a)"/>
+    <text x="468" y="104" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">(further PATCH body)</text>
+
+    <!-- posted/edited -> resolved -->
+    <line x1="360" y1="105" x2="360" y2="178" stroke="var(--green)" stroke-width="1.8" marker-end="url(#c-arr-g)"/>
+    <text x="368" y="145" fill="var(--svg-text)" font-family="sans-serif" font-size="10">PATCH resolved=true</text>
+
+    <!-- resolved -> unresolved -->
+    <line x1="430" y1="200" x2="506" y2="200" stroke="var(--accent)" stroke-width="1.8" marker-end="url(#c-arr-a)"/>
+    <text x="468" y="194" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="10">PATCH resolved=false</text>
+    <!-- unresolved -> resolved -->
+    <line x1="506" y1="215" x2="430" y2="215" stroke="var(--green)" stroke-width="1.8" marker-end="url(#c-arr-g)"/>
+    <text x="468" y="228" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="10">PATCH resolved=true</text>
+
+    <!-- unresolved -> edited link back to edited box -->
+    <path d="M 580 180 Q 580 120 580 108" stroke="var(--accent)" stroke-width="1.4" stroke-dasharray="4,2" fill="none" marker-end="url(#c-arr-a)"/>
+    <text x="680" y="150" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">PATCH body (author)</text>
+
+    <!-- posted/edited -> deleted -->
+    <line x1="320" y1="105" x2="320" y2="308" stroke="var(--red)" stroke-width="1.6" marker-end="url(#c-arr-r)"/>
+    <text x="272" y="250" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="10">DELETE</text>
+    <!-- resolved -> deleted -->
+    <line x1="360" y1="230" x2="360" y2="308" stroke="var(--red)" stroke-width="1.6" marker-end="url(#c-arr-r)"/>
+    <text x="395" y="270" fill="var(--svg-text)" font-family="sans-serif" font-size="10">DELETE</text>
+    <!-- unresolved -> deleted -->
+    <path d="M 540 230 Q 450 280 410 310" stroke="var(--red)" stroke-width="1.6" fill="none" marker-end="url(#c-arr-r)"/>
+    <text x="490" y="272" fill="var(--svg-text)" font-family="sans-serif" font-size="10">DELETE</text>
+
+    <!-- Must-not-happen: deleted -> anything -->
+    <path d="M 360 360 Q 180 400 170 120" stroke="var(--red)" stroke-width="1.4" fill="none" stroke-dasharray="3,3"/>
+    <text x="210" y="380" fill="var(--red)" font-family="sans-serif" font-size="10" font-weight="600">never: deleted &rarr; any</text>
+    <circle cx="180" cy="395" r="3" fill="var(--red)"/>
+    <line x1="172" y1="387" x2="188" y2="403" stroke="var(--red)" stroke-width="1.5"/>
+    <line x1="188" y1="387" x2="172" y2="403" stroke="var(--red)" stroke-width="1.5"/>
+
+    <!-- Orphan lane link -->
+    <line x1="700" y1="310" x2="700" y2="230" stroke="var(--yellow)" stroke-width="1.4" stroke-dasharray="5,3" marker-end="url(#c-arr-y)"/>
+    <text x="720" y="270" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">toggle flag</text>
+  </svg>
+  <div class="caption">Figure 3.1. Comment lifecycle. <code>deleted</code> is terminal. <code>orphan</code> is an orthogonal flag: it toggles on any non-<code>deleted</code> state but never <em>replaces</em> the main state.</div>
+</div>
+
+<h3 id="comment-transitions">3.2 Transition Table</h3>
+<table>
+  <thead><tr><th>From</th><th>Event / Trigger</th><th>Guard</th><th>To</th><th>Side effects</th></tr></thead>
+  <tbody>
+    <tr><td>(start)</td><td>Composer opened; user types</td><td>selection &ge; 3 chars in a <code>[data-section-id]</code> ancestor</td><td><code>draft</code></td><td>Entry written to <code>localStorage</code> keyed by <code>(scenario, doc, anchor)</code>. No server traffic.</td></tr>
+    <tr><td><code>draft</code></td><td>Keystroke (debounced 500ms)</td><td>composer open</td><td><code>draft</code></td><td>Re-write localStorage entry (self-loop).</td></tr>
+    <tr><td><code>draft</code></td><td><code>POST /api/comments/:s/:d</code> 201</td><td>auth ok; bucket has tokens; body 1-4000</td><td><code>posted</code></td><td>Append JSONL line; stamp server fields (<code>id</code>, <code>author</code>, <code>createdAt</code>); consume 1 token; stderr audit <code>[comments] POST ...</code>; SSE broadcast <code>{op:"create"}</code>; clear the matching localStorage draft.</td></tr>
+    <tr><td><code>draft</code></td><td><code>POST</code> 4xx / 5xx</td><td>(guard fails)</td><td><code>draft</code></td><td>Keep localStorage draft; surface error in UI; 429 triggers retry countdown; 5xx triggers exponential backoff (1s/2s/4s). <strong>No JSONL line written.</strong></td></tr>
+    <tr><td><code>posted</code> / <code>edited</code> / <code>unresolved</code></td><td><code>PATCH :id { body }</code> 200</td><td><code>actor.name === comment.author</code> AND edit window not closed</td><td><code>edited</code></td><td>Append JSONL event with new <code>body</code>; set <code>editedAt</code>; SSE <code>{op:"patch"}</code>; stderr audit <code>PATCH ... field=body</code>.</td></tr>
+    <tr><td><code>posted</code> / <code>edited</code> / <code>unresolved</code></td><td><code>PATCH :id { resolved: true }</code> 200</td><td>actor is host (loopback/<code>role:host</code>) OR any auth user &mdash; <strong>decision pending, see <a href="design.html#sec-perms">&sect;9 AC-4</a></strong></td><td><code>resolved</code></td><td>Append event; stamp <code>resolvedBy</code>, <code>resolvedAt</code>; SSE; stderr audit.</td></tr>
+    <tr><td><code>resolved</code></td><td><code>PATCH :id { resolved: false }</code> 200</td><td>same role guard as resolve</td><td><code>unresolved</code></td><td>Append event with <code>resolved=false</code>; clear <code>resolvedBy</code>/<code>resolvedAt</code> on the fold; SSE; stderr audit.</td></tr>
+    <tr><td>any non-<code>deleted</code></td><td><code>DELETE :id</code> 204</td><td><code>actor.name === comment.author</code> OR actor is host</td><td><code>deleted</code></td><td>Append tombstone event with <code>deleted=true</code>, <code>deletedBy</code>; on read, <code>body</code> is replaced with <code>"[deleted]"</code>; SSE <code>{op:"delete"}</code>; stderr audit.</td></tr>
+    <tr><td><code>deleted</code></td><td>Any mutation route</td><td>(all guards fail)</td><td><code>deleted</code></td><td>HTTP <strong>404</strong> (comment not found) or <strong>403</strong>. No JSONL line, no SSE, no audit of a mutation &mdash; only the <code>BLOCKED</code> audit line if it was a path-safety failure.</td></tr>
+    <tr><td>any non-<code>deleted</code></td><td><code>reanchor()</code> finds tier (a)/(b)/(c) match</td><td>exact-match cascade succeeds</td><td>(unchanged; <code>orphan=false</code>)</td><td>If <code>anchor.orphaned</code> was previously <code>true</code>, append event clearing the flag (+ setting <code>migratedFrom</code> if section changed); stderr audit <code>reanchor ...</code>.</td></tr>
+    <tr><td>any non-<code>deleted</code></td><td><code>reanchor()</code> tier (d): no acceptable match</td><td>all three tiers failed</td><td>(unchanged; <code>orphan=true</code>)</td><td>Append <code>{ orphaned: true }</code> event; stderr audit; widget pins card into the orphan group.</td></tr>
+    <tr><td>any state</td><td>Reply posted with <code>replyTo: id</code></td><td>parent id exists and is non-<code>deleted</code></td><td>(parent unchanged)</td><td>Child comment created with <code>threadId</code> = parent root; parent's <code>replies[]</code> grows on next fold. Does not move parent's state.</td></tr>
+  </tbody>
+</table>
+
+<h3 id="comment-invariants">3.3 Invariants</h3>
+<div class="callout">
+  <div class="callout-title"><span class="badge badge-blue">Invariants</span> Comment FSM</div>
+  <ul>
+    <li><strong>I-C1. Delete is terminal.</strong> Once a <code>deleted=true</code> event exists for a comment id, no later event may move that id to any non-<code>deleted</code> state. The server rejects any mutation on a deleted id with <code>404</code>.</li>
+    <li><strong>I-C2. Append-only log.</strong> Resolve and unresolve are two separate events &mdash; never an in-place toggle. Reading history always yields a total ordering.</li>
+    <li><strong>I-C3. Author attribution is server-controlled.</strong> <code>author</code> is always taken from <code>req.user.name</code> (or <code>"Host (local)"</code> on loopback); client-supplied <code>author</code> in the request body is silently dropped. See <a href="design.html#sec-attribution">Design &sect;9 Attribution Integrity</a>.</li>
+    <li><strong>I-C4. Body is raw, escape on render.</strong> The body string is stored verbatim (1-4000 chars); every renderer uses <code>textContent</code> or equivalent HTML escape. No state transition changes this contract.</li>
+    <li><strong>I-C5. Orphan is orthogonal.</strong> <code>orphan=true</code> can coexist with any of <code>posted</code>/<code>edited</code>/<code>resolved</code>/<code>unresolved</code>. It can never coexist with <code>deleted</code> (the server rejects re-anchor events targeting a deleted id).</li>
+    <li><strong>I-C6. Drafts never leak attribution.</strong> A <code>draft</code> lives only in the reviewer's <code>localStorage</code>; no <code>author</code>, <code>createdAt</code>, or <code>id</code> exists on it. If the browser crashes, re-opening the doc re-hydrates the draft without ever crossing a trust boundary.</li>
+    <li><strong>I-C7. Reply does not mutate parent.</strong> Creating a reply is a new <code>posted</code> comment with <code>replyTo</code> set; the parent's fold is unchanged. Resolving a parent does not resolve its replies (they inherit visibility via UI collapse, not state).</li>
+  </ul>
+</div>
+
+<h3 id="comment-edges">3.4 Open Questions / Edge Cases</h3>
+<ul>
+  <li>[ ] <strong>AC-4 resolve permission.</strong> PM says host-only; Architect says any auth user. Until this is pinned, the transition table row for <em>PATCH resolved</em> is dual-labelled. <a href="design.html#ac-list">Design AC-4</a>.</li>
+  <li>[ ] Edit-window length (30s? 5min? unbounded for author?). Design &sect;3 says "within window" but does not pin a number. Implication: the guard on the <em>edited</em> transition is under-specified.</li>
+  <li>[ ] Should editing a <em>resolved</em> comment's body auto-unresolve it, keep resolved, or be forbidden? Current table assumes PATCH body is allowed on <code>resolved</code> and keeps the flag; needs confirmation.</li>
+  <li>[ ] What should happen to replies when the parent is deleted? MVP: replies stay; deleted body shows "[deleted]". An alternative is cascading delete. TODO: pick one and add a test.</li>
+  <li>[ ] Host-driven hard-delete (purge) &mdash; not MVP per &sect;10 R-10, but its entry point is worth reserving.</li>
+</ul>
+
+<!-- ============ 4. REVISE FSM ============ -->
+<h2 id="revise-fsm">4. Revise-Intent Lifecycle</h2>
+
+<div class="entity-head">
+  <div><span class="label">Entity</span>
+    <div style="font-weight:590; color:var(--text); font-size:1.05rem;">Comment.intent === "revise"</div>
+  </div>
+  <p>When an author clicks <strong>Request update</strong> (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd>), a comment is created with <code>intent: "revise"</code> and a separate status axis, <code>reviseStatus</code>. This lifecycle runs <em>in parallel</em> to the Comment FSM: the underlying comment can still be edited or deleted; the revise axis independently tracks whether the author is awaiting a proposal, has one to review, or has accepted / rejected it. Passive mode (default) requires a manual dispatch; active mode dispatches synchronously on POST.</p>
+</div>
+
+<h3 id="revise-diagram">4.1 States &amp; Diagram</h3>
+<p>States: <code>pending</code> (JSONL line written; no dispatch yet), <code>dispatched</code> (subagent enqueued or running), <code>proposed</code> (diff file written at <code>.comments/&lt;doc&gt;.proposals/&lt;cmtId&gt;.diff</code>; <code>reviseProposalRef</code> set), <code>accepted</code> (diff applied to doc; parent comment <code>resolved=true</code>), <code>rejected</code> (no doc change; parent comment retained for reply). An additional guard &mdash; <em>anchor-drift check</em> &mdash; fires on <code>accept</code>: if the anchored span no longer matches, the transition refuses and the comment falls into <code>orphan</code> (on its Comment FSM axis) with the proposal preserved.</p>
+
+<div class="diagram">
+  <svg width="820" height="400" viewBox="0 0 820 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="r-fsm-t r-fsm-d">
+    <title id="r-fsm-t">Revise-intent state machine</title>
+    <desc id="r-fsm-d">A revise comment starts pending, gets dispatched (immediately in active mode, on demand in passive), the agent writes a proposal diff, and the author either accepts (diff applied, parent comment resolved) or rejects (doc untouched). An anchor-drift check before accept can downgrade the comment to orphan.</desc>
+
+    <defs>
+      <marker id="r-arr-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)"/></marker>
+      <marker id="r-arr-g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--green)"/></marker>
+      <marker id="r-arr-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--red)"/></marker>
+      <marker id="r-arr-y" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--yellow)"/></marker>
+      <marker id="r-arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--muted)"/></marker>
+    </defs>
+
+    <!-- Start -->
+    <circle cx="40" cy="110" r="8" fill="var(--muted)" stroke="var(--svg-border)" stroke-width="1.5"/>
+    <text x="40" y="90" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">POST intent="revise"</text>
+
+    <!-- pending -->
+    <rect x="90" y="85" width="140" height="50" rx="10" fill="var(--svg-bg)" stroke="var(--yellow)" stroke-width="1.8"/>
+    <text x="160" y="110" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">pending</text>
+    <text x="160" y="126" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">passive mode default</text>
+
+    <!-- dispatched -->
+    <rect x="300" y="85" width="150" height="50" rx="10" fill="var(--svg-bg)" stroke="var(--accent)" stroke-width="1.8"/>
+    <text x="375" y="110" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">dispatched</text>
+    <text x="375" y="126" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">agent job enqueued</text>
+
+    <!-- proposed -->
+    <rect x="530" y="85" width="150" height="50" rx="10" fill="var(--svg-bg)" stroke="var(--purple)" stroke-width="1.8"/>
+    <text x="605" y="110" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">proposed</text>
+    <text x="605" y="126" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">diff file written</text>
+
+    <!-- accepted -->
+    <rect x="530" y="220" width="150" height="50" rx="10" fill="var(--svg-bg)" stroke="var(--green)" stroke-width="2"/>
+    <text x="605" y="245" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">accepted</text>
+    <text x="605" y="261" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">doc mutated; parent resolved</text>
+
+    <!-- rejected -->
+    <rect x="300" y="220" width="150" height="50" rx="10" fill="var(--svg-bg)" stroke="var(--red)" stroke-width="2"/>
+    <text x="375" y="245" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">rejected</text>
+    <text x="375" y="261" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">doc untouched</text>
+
+    <!-- orphan-on-drift -->
+    <rect x="90" y="290" width="220" height="60" rx="10" fill="var(--svg-bg)" stroke="var(--yellow)" stroke-width="1.5" stroke-dasharray="5,3"/>
+    <text x="200" y="313" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">proposed &rarr; orphan (guard fail)</text>
+    <text x="200" y="330" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">anchor drifted since proposal;</text>
+    <text x="200" y="343" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">diff preserved, flag set on Comment FSM</text>
+
+    <!-- arrows -->
+    <line x1="50" y1="110" x2="86" y2="110" stroke="var(--muted)" stroke-width="1.6" marker-end="url(#r-arr-m)"/>
+
+    <!-- pending -> dispatched (manual) -->
+    <line x1="230" y1="105" x2="296" y2="105" stroke="var(--accent)" stroke-width="1.8" marker-end="url(#r-arr-a)"/>
+    <text x="263" y="97" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="10">revise-dispatch</text>
+    <text x="263" y="85" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">(/plan-revise or Dispatch btn)</text>
+
+    <!-- POST (active mode) shortcut -->
+    <path d="M 90 130 Q 70 160 220 160 Q 300 160 305 135" stroke="var(--green)" stroke-width="1.6" fill="none" marker-end="url(#r-arr-g)"/>
+    <text x="200" y="175" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">active mode: POST bypasses pending</text>
+
+    <!-- dispatched -> proposed -->
+    <line x1="450" y1="110" x2="526" y2="110" stroke="var(--accent)" stroke-width="1.8" marker-end="url(#r-arr-a)"/>
+    <text x="488" y="102" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="10">agent writes diff</text>
+
+    <!-- proposed -> accepted -->
+    <line x1="605" y1="135" x2="605" y2="218" stroke="var(--green)" stroke-width="1.8" marker-end="url(#r-arr-g)"/>
+    <text x="700" y="180" fill="var(--svg-text)" font-family="sans-serif" font-size="10">revise-accept</text>
+    <text x="700" y="194" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">(anchor-drift guard OK)</text>
+
+    <!-- proposed -> rejected -->
+    <line x1="530" y1="125" x2="450" y2="225" stroke="var(--red)" stroke-width="1.8" marker-end="url(#r-arr-r)"/>
+    <text x="470" y="175" fill="var(--svg-text)" font-family="sans-serif" font-size="10">revise-reject</text>
+
+    <!-- proposed -> orphan (drift) -->
+    <path d="M 530 135 Q 420 200 310 290" stroke="var(--yellow)" stroke-width="1.6" fill="none" marker-end="url(#r-arr-y)"/>
+    <text x="350" y="215" fill="var(--yellow)" font-weight="600" font-family="sans-serif" font-size="10">accept guard fails:</text>
+    <text x="350" y="228" fill="var(--yellow)" font-family="sans-serif" font-size="10">anchor drifted</text>
+
+    <!-- must-not-happen: accepted/rejected -> anything -->
+    <path d="M 680 270 Q 780 320 780 150 Q 780 110 690 110" stroke="var(--red)" stroke-width="1.2" stroke-dasharray="3,3" fill="none"/>
+    <text x="780" y="280" text-anchor="end" fill="var(--red)" font-family="sans-serif" font-size="10" font-weight="600">never: accepted/rejected &rarr; anywhere</text>
+    <line x1="700" y1="245" x2="716" y2="261" stroke="var(--red)" stroke-width="1.5"/>
+    <line x1="716" y1="245" x2="700" y2="261" stroke="var(--red)" stroke-width="1.5"/>
+  </svg>
+  <div class="caption">Figure 4.1. Revise lifecycle. Active mode fast-paths through <code>pending</code>; passive mode requires an explicit dispatch. Both terminate at <code>accepted</code> or <code>rejected</code>; an anchor-drift check at <em>accept</em> time protects the doc from being patched against stale text.</div>
+</div>
+
+<h3 id="revise-transitions">4.2 Transition Table</h3>
+<table>
+  <thead><tr><th>From</th><th>Event / Trigger</th><th>Guard</th><th>To</th><th>Side effects</th></tr></thead>
+  <tbody>
+    <tr><td>(none)</td><td><code>POST /api/comments/:s/:d { intent:"revise" }</code> 201</td><td><code>role === "host"</code> (loopback or session); passive mode configured</td><td><code>pending</code></td><td>Append Comment + <code>reviseStatus:"pending"</code> event; SSE <code>{op:"create"}</code>; UI renders <em>Pending dispatch</em> chip.</td></tr>
+    <tr><td>(none)</td><td><code>POST ... { intent:"revise" }</code> 201 &mdash; active mode</td><td>host role; <code>reviseMode:"active"</code>; <em>under concurrency cap (3 per scenario)</em></td><td><code>dispatched</code></td><td>Same as above, plus <em>immediately</em> append <code>reviseStatus:"dispatched"</code>; dispatcher enqueues agent job; chip reads <em>Revising&hellip;</em>.</td></tr>
+    <tr><td>(none)</td><td><code>POST ... { intent:"revise" }</code> &mdash; active mode, cap full</td><td>host role; <code>reviseMode:"active"</code>; concurrency cap reached</td><td><code>pending</code></td><td>Falls back to pending; UI banner <em>"Queue full &mdash; will auto-dispatch when a slot frees"</em> (UC-14).</td></tr>
+    <tr><td>(none)</td><td><code>POST ... { intent:"revise" }</code></td><td>non-host actor</td><td>(no state)</td><td><strong>403 FORBIDDEN</strong>. No JSONL line, no chip, no audit beyond stderr deny line.</td></tr>
+    <tr><td><code>pending</code></td><td><code>POST .../:id/revise-dispatch</code> 202</td><td>host role</td><td><code>dispatched</code></td><td>Append <code>reviseStatus:"dispatched"</code> event; SSE; dispatcher enqueues agent; stderr audit <code>PATCH ... field=reviseStatus value=dispatched</code>.</td></tr>
+    <tr><td><code>dispatched</code></td><td>Agent job finishes; writes <code>.diff</code></td><td>diff file created; <code>reviseProposalRef</code> = relative path</td><td><code>proposed</code></td><td>Server appends <code>reviseStatus:"proposed"</code> event with <code>reviseProposalRef</code>; SSE <code>{op:"patch"}</code>; UI chip becomes <em>Proposal ready</em>; toast.</td></tr>
+    <tr><td><code>dispatched</code></td><td>Agent timeout / internal error</td><td>timeout reached OR non-retryable error</td><td><code>pending</code></td><td>Server appends a re-pend event; UI chip flips back to <em>Pending dispatch</em>; stderr audit includes failure reason. (Design open question &mdash; not pinned; could alternatively be a <em>failed</em> terminal.)</td></tr>
+    <tr><td><code>proposed</code></td><td><code>POST .../:id/revise-accept</code> 200</td><td>host role; anchor span still matches <code>anchor.exact/prefix/suffix</code></td><td><code>accepted</code></td><td>Apply diff to the target doc; append <code>reviseStatus:"accepted"</code> + <code>resolved:true</code> events; SSE broadcasts both; stderr audit <code>accept id=...</code>.</td></tr>
+    <tr><td><code>proposed</code></td><td><code>POST .../:id/revise-accept</code></td><td>host role; <strong>anchor drift</strong>: span no longer matches</td><td><code>proposed</code> (unchanged), Comment FSM <code>orphan=true</code></td><td>Server refuses to patch doc; appends <code>{ orphaned: true }</code> event on the Comment FSM axis; diff file preserved; UI surfaces <em>"Needs manual re-attach"</em>. No doc mutation.</td></tr>
+    <tr><td><code>proposed</code></td><td><code>POST .../:id/revise-reject</code> 200</td><td>host role</td><td><code>rejected</code></td><td>Append <code>reviseStatus:"rejected"</code>; diff file kept on disk for audit; parent Comment stays <code>posted</code> / <code>edited</code> (not resolved); UI keeps card expanded so author can reply.</td></tr>
+    <tr><td><code>accepted</code> / <code>rejected</code></td><td>Any revise route</td><td>(terminal)</td><td>unchanged</td><td><strong>400 BAD_REQUEST</strong> or <strong>404</strong>; no event appended; stderr deny line.</td></tr>
+    <tr><td>any state</td><td>Parent Comment deleted</td><td>parent-id tombstone present</td><td>terminal</td><td>Revise status is <em>frozen</em>; UI hides the card along with the deleted parent. Diff file may be purged by a future compactor.</td></tr>
+  </tbody>
+</table>
+
+<h3 id="revise-invariants">4.3 Invariants</h3>
+<div class="callout">
+  <div class="callout-title"><span class="badge badge-blue">Invariants</span> Revise FSM</div>
+  <ul>
+    <li><strong>I-R1. Host gate at every entry.</strong> <code>intent:"revise"</code> can only land if the server-side role check passes. A client that sets <code>intent:"revise"</code> as a non-host actor is rejected <strong>403</strong>; no JSONL event, no state change. See <a href="design.html#sec-perms">Design &sect;9 Permission Matrix</a>.</li>
+    <li><strong>I-R2. <code>accepted</code> and <code>rejected</code> are terminal.</strong> There is no route that moves an accepted comment back to <code>proposed</code>, and no route that re-dispatches a rejected one. A new follow-up revise is a <em>new comment</em>.</li>
+    <li><strong>I-R3. Anchor-drift guard is always checked at accept.</strong> The server re-runs the prefix+exact+suffix match against the <em>current</em> doc before applying the diff. This guard fails open into <code>orphan</code> on the Comment FSM, <em>never</em> silently patches stale text.</li>
+    <li><strong>I-R4. One doc mutation per proposal, at most.</strong> Accepting a proposal applies its diff exactly once; a second accept is 404.</li>
+    <li><strong>I-R5. <code>reviseProposalRef</code> only valid from <code>proposed</code> onward.</strong> Before <code>proposed</code>, the field is <code>null</code>. The server refuses to serve the diff file unless the fold has <code>reviseStatus === "proposed" | "accepted" | "rejected"</code> <em>and</em> actor is host.</li>
+    <li><strong>I-R6. Active mode respects the concurrency cap.</strong> At most 3 concurrent <code>dispatched</code> per scenario; the 4th request falls to <code>pending</code> with a UI banner (UC-14). This cap is enforced in <code>revise-dispatcher.js</code>, not in the route.</li>
+    <li><strong>I-R7. Revise and Comment FSMs compose, not interfere.</strong> A revise comment can be deleted (Comment FSM terminal) while still in <code>proposed</code>; the proposal file is kept for audit but can never re-enter the accept path because the parent is gone.</li>
+  </ul>
+</div>
+
+<h3 id="revise-edges">4.4 Open Questions / Edge Cases</h3>
+<ul>
+  <li>[ ] Agent-failure transition from <code>dispatched</code>: does it fall back to <code>pending</code>, to a new <code>failed</code> terminal, or surface as a PATCH-body edit on the underlying comment? MVP table assumes fall-back to <code>pending</code>; needs review.</li>
+  <li>[ ] What happens if the author edits the comment <em>body</em> while it is <code>dispatched</code>? Does the agent see the new body (re-dispatch implicit) or keep working on the snapshot it received?</li>
+  <li>[ ] Concurrency cap semantics for passive mode: no cap today &mdash; a <code>/plan-revise</code> run could enqueue 100 jobs at once. Decision needed whether to apply the 3-per-scenario cap there too.</li>
+  <li>[ ] Should a reviewer be able to <em>see</em> the proposal diff? Design says author-only; no route exposes the file to remote sessions. Confirm in test cases (negative test: remote GET on proposal file returns 403).</li>
+  <li>[ ] Can <code>revise-reject</code> append a reason string? Current design has no such field; add to <code>Comment</code> as <code>rejectReason</code> if useful, or land as a follow-up reply.</li>
+</ul>
+
+<!-- ============ 5. ANCHOR FSM ============ -->
+<h2 id="anchor-fsm">5. Anchor Re-Anchor Cascade</h2>
+
+<div class="entity-head">
+  <div><span class="label">Entity</span>
+    <div style="font-weight:590; color:var(--text); font-size:1.05rem;">Anchor (after regen)</div>
+  </div>
+  <p>When a plan doc is regenerated, every existing comment's anchor is tested against the new HTML by a three-tier cascade (<a href="design.html#arch-seq-reanchor">Design &sect;4 Re-anchor sequence</a>). Each anchor ends in exactly one of three states: <code>anchored</code> (tier a held), <code>migratedFrom</code> (tier b or c matched; the anchor is now attached to a different section or span), or <code>orphaned</code> (tier d &mdash; no acceptable match). The cascade is deterministic: tier order is never shuffled, and each anchor is touched exactly once per regen.</p>
+</div>
+
+<h3 id="anchor-diagram">5.1 States &amp; Diagram</h3>
+
+<div class="diagram">
+  <svg width="820" height="360" viewBox="0 0 820 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="a-fsm-t a-fsm-d">
+    <title id="a-fsm-t">Anchor re-anchor cascade</title>
+    <desc id="a-fsm-d">For each comment the anchor is tested in three tiers: tier a exact prefix+exact+suffix in the same sectionId yields anchored; tier b exact text anywhere in the same section yields migratedFrom; tier c Jaccard >= 0.72 across sections yields migratedFrom with a section change; tier d yields orphaned.</desc>
+
+    <defs>
+      <marker id="a-arr-g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--green)"/></marker>
+      <marker id="a-arr-b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)"/></marker>
+      <marker id="a-arr-y" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--yellow)"/></marker>
+      <marker id="a-arr-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--red)"/></marker>
+    </defs>
+
+    <!-- Start / enter -->
+    <rect x="30" y="150" width="140" height="60" rx="10" fill="var(--svg-bg)" stroke="var(--accent)" stroke-width="1.8"/>
+    <text x="100" y="178" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">enter cascade</text>
+    <text x="100" y="196" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">regen &rArr; reanchor()</text>
+
+    <!-- Tier a gate -->
+    <polygon points="220,180 280,150 340,180 280,210" fill="var(--svg-bg)" stroke="var(--green)" stroke-width="1.8"/>
+    <text x="280" y="185" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="11" font-weight="700">tier (a)</text>
+    <text x="280" y="200" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">prefix+exact+suffix</text>
+
+    <!-- anchored -->
+    <rect x="400" y="40" width="160" height="60" rx="10" fill="var(--svg-bg)" stroke="var(--green)" stroke-width="2"/>
+    <text x="480" y="68" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">anchored</text>
+    <text x="480" y="86" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">HELD &ndash; same section, exact</text>
+
+    <!-- Tier b gate -->
+    <polygon points="220,280 280,250 340,280 280,310" fill="var(--svg-bg)" stroke="var(--accent)" stroke-width="1.8"/>
+    <text x="280" y="284" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="11" font-weight="700">tier (b)</text>
+    <text x="280" y="298" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">exact in-section</text>
+
+    <!-- migratedFrom (section preserved, span moved) -->
+    <rect x="400" y="150" width="160" height="60" rx="10" fill="var(--svg-bg)" stroke="var(--accent)" stroke-width="1.8"/>
+    <text x="480" y="178" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">migratedFrom</text>
+    <text x="480" y="196" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">MIGRATED &ndash; in-section or cross</text>
+
+    <!-- Tier c gate -->
+    <polygon points="400,290 460,260 520,290 460,320" fill="var(--svg-bg)" stroke="var(--yellow)" stroke-width="1.8"/>
+    <text x="460" y="294" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="11" font-weight="700">tier (c)</text>
+    <text x="460" y="308" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="9">Jaccard &ge; 0.72</text>
+
+    <!-- orphaned -->
+    <rect x="600" y="240" width="170" height="60" rx="10" fill="var(--svg-bg)" stroke="var(--red)" stroke-width="2"/>
+    <text x="685" y="268" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">orphaned</text>
+    <text x="685" y="286" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">ORPHAN &ndash; tier (d)</text>
+
+    <!-- arrows -->
+    <line x1="170" y1="180" x2="218" y2="180" stroke="var(--accent)" stroke-width="1.8" marker-end="url(#a-arr-b)"/>
+
+    <!-- a hit -->
+    <path d="M 280 150 Q 280 90 396 70" stroke="var(--green)" stroke-width="1.8" fill="none" marker-end="url(#a-arr-g)"/>
+    <text x="330" y="115" fill="var(--svg-text)" font-family="sans-serif" font-size="10">hit</text>
+
+    <!-- a miss -> tier b -->
+    <line x1="280" y1="212" x2="280" y2="248" stroke="var(--muted)" stroke-width="1.4" stroke-dasharray="4,2"/>
+    <text x="295" y="234" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">miss</text>
+
+    <!-- b hit -->
+    <line x1="340" y1="280" x2="398" y2="210" stroke="var(--accent)" stroke-width="1.8" marker-end="url(#a-arr-b)"/>
+    <text x="365" y="240" fill="var(--svg-text)" font-family="sans-serif" font-size="10">hit: section preserved</text>
+
+    <!-- b miss -> tier c -->
+    <line x1="340" y1="295" x2="400" y2="290" stroke="var(--muted)" stroke-width="1.4" stroke-dasharray="4,2"/>
+    <text x="360" y="280" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">miss</text>
+
+    <!-- c hit -->
+    <line x1="490" y1="275" x2="480" y2="212" stroke="var(--yellow)" stroke-width="1.8" marker-end="url(#a-arr-y)"/>
+    <text x="500" y="245" fill="var(--svg-text)" font-family="sans-serif" font-size="10">hit: section changed</text>
+
+    <!-- c miss -> orphaned -->
+    <line x1="520" y1="290" x2="598" y2="280" stroke="var(--red)" stroke-width="1.8" marker-end="url(#a-arr-r)"/>
+    <text x="555" y="271" text-anchor="middle" fill="var(--red)" font-family="sans-serif" font-size="10" font-weight="600">tier (d)</text>
+  </svg>
+  <div class="caption">Figure 5.1. Anchor cascade. Each anchor traverses tiers (a) then (b) then (c); the first hit wins. Only (d) &mdash; no hit &mdash; produces <code>orphaned</code>. Tier (b) preserves <code>sectionId</code>; tier (c) may change <code>sectionId</code> and therefore records <code>migratedFrom</code>.</div>
+</div>
+
+<h3 id="anchor-transitions">5.2 Transition Table</h3>
+<table>
+  <thead><tr><th>From</th><th>Event / Trigger</th><th>Guard</th><th>To</th><th>Side effects</th></tr></thead>
+  <tbody>
+    <tr><td>(initial, from JSONL on reanchor start)</td><td><code>reanchor()</code> enters tier (a)</td><td>always</td><td>tier (a) eval</td><td>Load the doc's new HTML; build text index per section.</td></tr>
+    <tr><td>tier (a)</td><td>eval</td><td>new HTML has <code>prefix + exact + suffix</code> inside a span carrying the same <code>sectionId</code></td><td><code>anchored</code></td><td>If previous fold was <code>orphaned</code>, append event clearing the flag; otherwise no write. Telemetry: <code>held++</code>.</td></tr>
+    <tr><td>tier (a)</td><td>eval</td><td>no match in same <code>sectionId</code></td><td>tier (b) eval</td><td>None (pure fallthrough).</td></tr>
+    <tr><td>tier (b)</td><td>eval</td><td>exact text appears anywhere inside the same <code>sectionId</code></td><td><code>migratedFrom</code> (same section; span moved)</td><td>Append event; leave <code>sectionId</code> unchanged, update <code>prefix</code>/<code>suffix</code> to new surroundings; do <em>not</em> set <code>migratedFrom</code> field (no section change). Telemetry: <code>migrated++</code>.</td></tr>
+    <tr><td>tier (b)</td><td>eval</td><td>no match</td><td>tier (c) eval</td><td>None.</td></tr>
+    <tr><td>tier (c)</td><td>eval</td><td>Jaccard token overlap &ge; 0.72 against exactly one section</td><td><code>migratedFrom</code> (cross-section)</td><td>Append event; set <code>migratedFrom</code> = old <code>sectionId</code>; update <code>sectionId</code>, <code>prefix</code>, <code>suffix</code>. Telemetry: <code>migrated++</code>.</td></tr>
+    <tr><td>tier (c)</td><td>eval</td><td>no match OR Jaccard ties across multiple sections above 0.72</td><td><code>orphaned</code></td><td>Append <code>{ orphaned: true }</code> event; telemetry: <code>orphaned++</code>. Ties resolve to orphan rather than pick arbitrarily (AC-like: "deterministic-or-orphan").</td></tr>
+    <tr><td><code>orphaned</code></td><td>Next <code>reanchor()</code> after a later regen</td><td>a/b/c match now</td><td><code>anchored</code> or <code>migratedFrom</code></td><td>Append <code>{ orphaned: false }</code> event plus the new match event; &mdash; anchors are recoverable, orphan is not terminal.</td></tr>
+    <tr><td>any</td><td>Parent Comment <code>deleted=true</code></td><td>tombstone present</td><td>(skipped)</td><td>Reanchor pass skips deleted comments entirely &mdash; no JSONL write, no telemetry.</td></tr>
+  </tbody>
+</table>
+
+<h3 id="anchor-invariants">5.3 Invariants</h3>
+<div class="callout">
+  <div class="callout-title"><span class="badge badge-blue">Invariants</span> Anchor FSM</div>
+  <ul>
+    <li><strong>I-A1. Deterministic tier order.</strong> Always (a) &rarr; (b) &rarr; (c) &rarr; (d). Never skip a tier, never re-order. Two reanchor runs over the same input must yield the same output.</li>
+    <li><strong>I-A2. Orphan is recoverable, not terminal.</strong> A later regen can move an anchor back from <code>orphaned</code> to <code>anchored</code> / <code>migratedFrom</code>; the invariant from the Comment FSM that "orphan is a flag" applies here too.</li>
+    <li><strong>I-A3. <code>migratedFrom</code> is only set when <code>sectionId</code> actually changes.</strong> Tier (b) does not set the field (section preserved); tier (c) does.</li>
+    <li><strong>I-A4. Ties orphan, not guess.</strong> If tier (c) finds two sections above the Jaccard threshold, the anchor becomes <code>orphaned</code> rather than binding arbitrarily. Audit log records the tie.</li>
+    <li><strong>I-A5. Telemetry is emitted exactly once per reanchor run.</strong> <code>[comments] reanchor &lt;scenario&gt;/&lt;doc&gt; held=N migrated=M orphaned=K</code> &mdash; a single summary line even if the log has 1000 comments.</li>
+    <li><strong>I-A6. Deleted comments are invisible to reanchor.</strong> See I-C1: <code>deleted</code> is terminal; the anchor axis does not run on them.</li>
+  </ul>
+</div>
+
+<h3 id="anchor-edges">5.4 Open Questions / Edge Cases</h3>
+<ul>
+  <li>[ ] The Jaccard threshold (0.72) is drawn from <a href="design.html#risks">&sect;10 R-1</a>. Needs a small corpus test to validate under realistic regen churn before locking the number.</li>
+  <li>[ ] If the same exact text appears twice in the new section (e.g. "the default") &mdash; tier (b) currently treats that as a hit at the first occurrence. Is that correct, or should duplicate hits orphan like tier-c ties? TODO: decide before MVP.</li>
+  <li>[ ] What about anchors whose <code>exact</code> was a block element (e.g. an entire <code>&lt;li&gt;</code>) that got <em>split</em> on regen? Tier (a) will miss; tier (b)/(c) will likely migrate; explicit test case needed.</li>
+  <li>[ ] Should section-ID collisions (the <code>-2</code> / <code>-3</code> collision resolver from &sect;3) route through a separate <em>ambiguous</em> state, or fall into orphan? Current design treats them as distinct ids; no special state.</li>
+</ul>
+
+<!-- ============ 6. SESSION FSM ============ -->
+<h2 id="session-fsm">6. Session Lifecycle</h2>
+
+<div class="entity-head">
+  <div><span class="label">Entity</span>
+    <div style="font-weight:590; color:var(--text); font-size:1.05rem;">Session (auth.js)</div>
+  </div>
+  <p>Every mutation route above checks a session first. On loopback, the session is implicit and bypassed (<code>author="Host (local)"</code>). For remote clients through the devtunnel, the flow is: anonymous &rarr; authenticated (HMAC-signed cookie, rolling TTL) &rarr; expired (TTL lapsed) or revoked (host-initiated). This FSM is owned by <code>auth.js</code>; the comment module consumes it via <code>verifyCookie()</code>.</p>
+</div>
+
+<h3 id="session-diagram">6.1 States &amp; Diagram</h3>
+
+<div class="diagram">
+  <svg width="820" height="340" viewBox="0 0 820 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="s-fsm-t s-fsm-d">
+    <title id="s-fsm-t">Session state machine</title>
+    <desc id="s-fsm-d">A remote visitor starts anonymous; correct password + name yields an HMAC-signed session cookie and authenticated state with a rolling TTL; silence past TTL yields expired; host revocation yields revoked. Loopback requests bypass the machine entirely.</desc>
+
+    <defs>
+      <marker id="s-arr-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)"/></marker>
+      <marker id="s-arr-g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--green)"/></marker>
+      <marker id="s-arr-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--red)"/></marker>
+      <marker id="s-arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--muted)"/></marker>
+    </defs>
+
+    <!-- anonymous -->
+    <rect x="40" y="130" width="150" height="60" rx="10" fill="var(--svg-bg)" stroke="var(--muted)" stroke-width="1.8"/>
+    <text x="115" y="158" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">anonymous</text>
+    <text x="115" y="176" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">no cookie / bad sig</text>
+
+    <!-- authenticated -->
+    <rect x="300" y="130" width="180" height="60" rx="10" fill="var(--svg-bg)" stroke="var(--green)" stroke-width="2"/>
+    <text x="390" y="158" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">authenticated</text>
+    <text x="390" y="176" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">HMAC OK &middot; rolling TTL</text>
+
+    <!-- expired -->
+    <rect x="590" y="50" width="180" height="60" rx="10" fill="var(--svg-bg)" stroke="var(--yellow)" stroke-width="1.8"/>
+    <text x="680" y="78" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">expired</text>
+    <text x="680" y="96" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">TTL lapsed; recoverable</text>
+
+    <!-- revoked -->
+    <rect x="590" y="220" width="180" height="60" rx="10" fill="var(--svg-bg)" stroke="var(--red)" stroke-width="2"/>
+    <text x="680" y="248" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">revoked</text>
+    <text x="680" y="266" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">host stop; terminal (until re-login)</text>
+
+    <!-- loopback bypass note -->
+    <rect x="40" y="240" width="220" height="60" rx="10" fill="var(--svg-bg)" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="5,3"/>
+    <text x="150" y="264" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">loopback (bypass)</text>
+    <text x="150" y="281" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">skips FSM; author = "Host (local)"</text>
+
+    <!-- arrows -->
+    <!-- anonymous -> authenticated -->
+    <line x1="190" y1="160" x2="298" y2="160" stroke="var(--green)" stroke-width="1.8" marker-end="url(#s-arr-g)"/>
+    <text x="244" y="152" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="10">POST /login (name + pw)</text>
+
+    <!-- anonymous self (bad pw / rate limit) -->
+    <path d="M 60 130 Q 10 100 40 70 Q 115 30 180 70 Q 215 100 165 130" stroke="var(--red)" stroke-width="1.4" fill="none" marker-end="url(#s-arr-r)"/>
+    <text x="110" y="65" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">bad password / RL</text>
+
+    <!-- authenticated self (roll TTL) -->
+    <path d="M 320 130 Q 340 90 390 90 Q 440 90 460 130" stroke="var(--accent)" stroke-width="1.4" fill="none" stroke-dasharray="4,2" marker-end="url(#s-arr-a)"/>
+    <text x="390" y="82" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">any request within TTL &rArr; roll</text>
+
+    <!-- authenticated -> expired -->
+    <line x1="480" y1="140" x2="590" y2="90" stroke="var(--muted)" stroke-width="1.6" marker-end="url(#s-arr-m)"/>
+    <text x="540" y="110" fill="var(--svg-text)" font-family="sans-serif" font-size="10">timer: no request for TTL</text>
+
+    <!-- authenticated -> revoked -->
+    <line x1="480" y1="180" x2="590" y2="240" stroke="var(--red)" stroke-width="1.8" marker-end="url(#s-arr-r)"/>
+    <text x="530" y="225" fill="var(--svg-text)" font-family="sans-serif" font-size="10">plan_share_stop</text>
+
+    <!-- expired -> anonymous (treat as anonymous for next check) -->
+    <path d="M 590 80 Q 420 60 190 130" stroke="var(--muted)" stroke-width="1.4" fill="none" marker-end="url(#s-arr-m)"/>
+    <text x="390" y="40" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">next request: treated as anonymous &rArr; 401 &rarr; re-login</text>
+
+    <!-- revoked -> anonymous (only via new login) -->
+    <path d="M 590 260 Q 300 320 115 195" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="4,3" fill="none" marker-end="url(#s-arr-m)"/>
+    <text x="370" y="315" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">only via fresh login (signature mismatch on old cookie)</text>
+  </svg>
+  <div class="caption">Figure 6.1. Session lifecycle. Loopback skips the entire machine. Remote sessions roll their TTL on every valid request; <code>plan_share_stop</code> rotates the secret (design &sect;10 R-9), invalidating every outstanding cookie in one shot.</div>
+</div>
+
+<h3 id="session-transitions">6.2 Transition Table</h3>
+<table>
+  <thead><tr><th>From</th><th>Event / Trigger</th><th>Guard</th><th>To</th><th>Side effects</th></tr></thead>
+  <tbody>
+    <tr><td>(initial)</td><td>first request (no cookie) or bad/forged cookie</td><td>always</td><td><code>anonymous</code></td><td>GETs to protected routes yield <code>401</code>; login form rendered.</td></tr>
+    <tr><td><code>anonymous</code></td><td><code>POST /login</code> with name + password</td><td>timing-safe password match; &lt; N failed attempts in window (rate limit)</td><td><code>authenticated</code></td><td>Server generates <code>sid</code>, HMAC-signs <code>{ sid, name, exp }</code>; sets <code>plan_session</code> cookie <code>SameSite=Strict; HttpOnly; Secure</code>; adds to in-memory session map; stderr audit <code>[auth] login ok name=...</code>.</td></tr>
+    <tr><td><code>anonymous</code></td><td><code>POST /login</code> wrong pw</td><td>password mismatch or RL exceeded</td><td><code>anonymous</code></td><td><code>401</code> or <code>429</code>; stderr <code>[auth] login fail name=... ip=...</code>; failure counter incremented.</td></tr>
+    <tr><td><code>authenticated</code></td><td>any valid request within TTL</td><td>cookie valid; <code>now &lt; exp</code></td><td><code>authenticated</code> (TTL rolled)</td><td>New cookie issued with <code>exp = now + TTL</code>; in-memory entry updated. No audit (quiet).</td></tr>
+    <tr><td><code>authenticated</code></td><td>timer: <code>now &gt; exp</code> on next request</td><td>cookie signature still valid but expired</td><td><code>expired</code></td><td><code>401</code> with a hint to re-login; cookie cleared; stderr <code>[auth] session expired sid=...</code>.</td></tr>
+    <tr><td><code>authenticated</code></td><td><code>plan_share_stop</code></td><td>host triggers stop</td><td><code>revoked</code></td><td>HMAC secret rotated; every outstanding cookie now fails signature check; active SSE streams closed (see <a href="#sse-fsm">&sect;7</a>); stderr <code>[auth] all sessions revoked</code>.</td></tr>
+    <tr><td><code>expired</code> / <code>revoked</code></td><td>any protected request</td><td>always</td><td><code>anonymous</code> (logical)</td><td>Old cookie discarded; treated as anonymous on the next check (so the login flow re-applies). No state-machine row appends an event; only the client perceives a transition.</td></tr>
+    <tr><td>loopback request</td><td>anything</td><td><code>req.socket.remoteAddress</code> is 127.* / ::1</td><td>(bypass)</td><td>No session machine entry; <code>req.user = { name: "Host (local)", role: "host" }</code>.</td></tr>
+  </tbody>
+</table>
+
+<h3 id="session-invariants">6.3 Invariants</h3>
+<div class="callout">
+  <div class="callout-title"><span class="badge badge-blue">Invariants</span> Session FSM</div>
+  <ul>
+    <li><strong>I-S1. Loopback never enters the FSM.</strong> The bypass is the first check; it cannot be disabled from a request. A remote actor who spoofs <code>X-Forwarded-For</code> cannot reach the bypass because the check is on <code>remoteAddress</code>.</li>
+    <li><strong>I-S2. TTL is rolling, not sliding per-route.</strong> Every valid request refreshes the cookie <code>exp</code>. A user who polls every 5 minutes stays authenticated indefinitely until <code>plan_share_stop</code> or explicit logout.</li>
+    <li><strong>I-S3. Revocation is atomic.</strong> <code>plan_share_stop</code> rotates the HMAC secret; there is no per-session revoke table. One action invalidates all cookies. Cheap and sound.</li>
+    <li><strong>I-S4. Login failures are rate-limited.</strong> Without this, a devtunnel is a password-spray target. The RL key is IP + name; stderr audit shows every failure.</li>
+    <li><strong>I-S5. Session name is stamped into comment <code>author</code>, not read from it.</strong> See I-C3.</li>
+    <li><strong>I-S6. <code>role: host</code> is never client-settable.</strong> The server assigns the role at login time based on how the session was created (loopback, or an explicit host login gate). The <code>intent:"revise"</code> permission matrix depends on this.</li>
+  </ul>
+</div>
+
+<h3 id="session-edges">6.4 Open Questions / Edge Cases</h3>
+<ul>
+  <li>[ ] Concrete TTL length (30 min? 24h?). Design points at <code>auth.js</code> rolling TTL but the number is not in this scenario's design doc; needs to be pinned before test cases.</li>
+  <li>[ ] Explicit <code>/logout</code> route? Useful for test cases and for reviewers on shared machines. Not in design today.</li>
+  <li>[ ] Should <code>role: host</code> be assignable to a remote session (e.g. a second teammate who logs in with the host password)? Design treats host purely as loopback + reserved login name &mdash; confirm.</li>
+  <li>[ ] SSE cookie handoff: if the cookie rolls <em>during</em> an open SSE connection, does the next <code>open</code> after reconnect pick up the new cookie or fall back to anonymous? See &sect;7.</li>
+</ul>
+
+<!-- ============ 7. SSE CLIENT FSM ============ -->
+<h2 id="sse-fsm">7. SSE Client Lifecycle</h2>
+
+<div class="entity-head">
+  <div><span class="label">Entity</span>
+    <div style="font-weight:590; color:var(--text); font-size:1.05rem;">SSE client (browser EventSource + server registry)</div>
+  </div>
+  <p>Each open doc holds one <code>EventSource</code> to <code>GET /api/comments/:s/:d/stream</code>. The server keeps a per-doc <code>Set&lt;Response&gt;</code> and flushes <code>comment</code> events to every member on each mutation, plus a <code>ping</code> every 30 seconds to keep the devtunnel warm. The browser auto-reconnects on error (built-in <code>EventSource</code> behaviour with exponential backoff up to ~10 s).</p>
+</div>
+
+<h3 id="sse-diagram">7.1 States &amp; Diagram</h3>
+
+<div class="diagram">
+  <svg width="820" height="320" viewBox="0 0 820 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="e-fsm-t e-fsm-d">
+    <title id="e-fsm-t">SSE client state machine</title>
+    <desc id="e-fsm-d">Client opens EventSource; after the server's first ping it is connected; once a comment event arrives it is considered streaming; TCP loss flips it to disconnected; EventSource auto-reconnects with exponential backoff; session revocation forces a terminal closed state.</desc>
+
+    <defs>
+      <marker id="e-arr-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)"/></marker>
+      <marker id="e-arr-g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--green)"/></marker>
+      <marker id="e-arr-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--red)"/></marker>
+      <marker id="e-arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--muted)"/></marker>
+    </defs>
+
+    <!-- opening -->
+    <rect x="30" y="120" width="140" height="56" rx="10" fill="var(--svg-bg)" stroke="var(--muted)" stroke-width="1.8"/>
+    <text x="100" y="147" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">opening</text>
+    <text x="100" y="163" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">new EventSource()</text>
+
+    <!-- connected -->
+    <rect x="210" y="120" width="140" height="56" rx="10" fill="var(--svg-bg)" stroke="var(--green)" stroke-width="1.8"/>
+    <text x="280" y="147" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">connected</text>
+    <text x="280" y="163" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">open + first ping</text>
+
+    <!-- streaming -->
+    <rect x="390" y="120" width="140" height="56" rx="10" fill="var(--svg-bg)" stroke="var(--accent)" stroke-width="1.8"/>
+    <text x="460" y="147" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">streaming</text>
+    <text x="460" y="163" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">comment events flowing</text>
+
+    <!-- disconnected -->
+    <rect x="580" y="120" width="170" height="56" rx="10" fill="var(--svg-bg)" stroke="var(--yellow)" stroke-width="1.8"/>
+    <text x="665" y="147" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">disconnected</text>
+    <text x="665" y="163" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">auto-reconnect (exp backoff)</text>
+
+    <!-- closed terminal -->
+    <rect x="580" y="240" width="170" height="56" rx="10" fill="var(--svg-bg)" stroke="var(--red)" stroke-width="2"/>
+    <text x="665" y="267" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">closed (terminal)</text>
+    <text x="665" y="283" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">session revoked / tab closed</text>
+
+    <!-- arrows -->
+    <line x1="170" y1="148" x2="208" y2="148" stroke="var(--accent)" stroke-width="1.8" marker-end="url(#e-arr-a)"/>
+    <line x1="350" y1="148" x2="388" y2="148" stroke="var(--green)" stroke-width="1.8" marker-end="url(#e-arr-g)"/>
+    <text x="370" y="138" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">first event</text>
+    <line x1="530" y1="148" x2="578" y2="148" stroke="var(--muted)" stroke-width="1.6" marker-end="url(#e-arr-m)"/>
+    <text x="554" y="138" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">TCP loss</text>
+
+    <!-- disconnected -> opening (reconnect) -->
+    <path d="M 580 145 Q 340 90 100 118" stroke="var(--accent)" stroke-width="1.4" stroke-dasharray="4,2" fill="none" marker-end="url(#e-arr-a)"/>
+    <text x="340" y="80" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">EventSource auto-reconnect</text>
+
+    <!-- ping self-loop on connected/streaming -->
+    <path d="M 280 120 Q 280 60 460 60 Q 460 60 460 120" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="3,2" fill="none"/>
+    <text x="370" y="53" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">ping every 30s (keepalive)</text>
+
+    <!-- to closed -->
+    <line x1="665" y1="176" x2="665" y2="238" stroke="var(--red)" stroke-width="1.8" marker-end="url(#e-arr-r)"/>
+    <text x="790" y="210" text-anchor="end" fill="var(--svg-text)" font-family="sans-serif" font-size="10">session revoked / tab closed</text>
+
+    <!-- must not: closed -> anything -->
+    <path d="M 580 270 Q 360 310 120 180" stroke="var(--red)" stroke-width="1.2" stroke-dasharray="3,3" fill="none"/>
+    <text x="300" y="305" text-anchor="middle" fill="var(--red)" font-family="sans-serif" font-size="10" font-weight="600">never: closed resurrects without new EventSource</text>
+  </svg>
+  <div class="caption">Figure 7.1. SSE client lifecycle. <code>disconnected</code> is intentionally not terminal &mdash; the browser's <code>EventSource</code> retries with exponential backoff and re-enters <code>opening</code> until the session is revoked or the tab closes, at which point it terminates.</div>
+</div>
+
+<h3 id="sse-transitions">7.2 Transition Table</h3>
+<table>
+  <thead><tr><th>From</th><th>Event / Trigger</th><th>Guard</th><th>To</th><th>Side effects</th></tr></thead>
+  <tbody>
+    <tr><td>(initial, no connection)</td><td>JS loads; widget calls <code>new EventSource(...)</code></td><td>page visible</td><td><code>opening</code></td><td>HTTP <code>GET /api/comments/:s/:d/stream</code> with cookie; server enters auth gate.</td></tr>
+    <tr><td><code>opening</code></td><td>server responds <code>200</code> + <code>text/event-stream</code> headers</td><td>auth passes; doc allowlisted</td><td><code>connected</code></td><td>Server adds <code>res</code> to <code>Map&lt;docKey, Set&gt;</code>; stderr <code>[comments] SSE client connected sid=...</code>; immediate <code>ping</code> frame.</td></tr>
+    <tr><td><code>opening</code></td><td>server responds <code>401</code>/<code>403</code></td><td>auth fails</td><td><code>disconnected</code></td><td>Browser logs error; backoff timer arms (1s &rarr; 2s &rarr; 4s &rarr; &hellip;); UI shows "Reconnecting&hellip;" banner.</td></tr>
+    <tr><td><code>connected</code></td><td>First <code>event: comment</code> frame</td><td>always</td><td><code>streaming</code></td><td>Widget updates sidebar + highlights; <code>aria-live</code> announcement fires.</td></tr>
+    <tr><td><code>connected</code> / <code>streaming</code></td><td><code>event: ping</code> frame (server timer, 30 s)</td><td>connection alive</td><td>same</td><td>Self-loop; resets browser's internal idle timer; keeps devtunnel warm.</td></tr>
+    <tr><td><code>connected</code> / <code>streaming</code></td><td>TCP error / tunnel drop</td><td>socket closed</td><td><code>disconnected</code></td><td>Server detects <code>close</code>, removes from registry, stderr <code>SSE client disconnected sid=...</code>; browser arms backoff.</td></tr>
+    <tr><td><code>disconnected</code></td><td>backoff timer fires</td><td>session cookie still valid; tab visible</td><td><code>opening</code></td><td>Browser opens new EventSource; server-side auth check repeats.</td></tr>
+    <tr><td>any state</td><td>Session revoked (<code>plan_share_stop</code>)</td><td>server rotates HMAC secret</td><td><code>closed</code></td><td>Server sends <code>event: revoked</code> frame, then closes the stream; widget disables comment creation; banner <em>"Session revoked. Log in again."</em></td></tr>
+    <tr><td>any state</td><td>Tab close / navigation away</td><td>visibility lost</td><td><code>closed</code></td><td>Browser closes EventSource; server removes from registry.</td></tr>
+  </tbody>
+</table>
+
+<h3 id="sse-invariants">7.3 Invariants</h3>
+<div class="callout">
+  <div class="callout-title"><span class="badge badge-blue">Invariants</span> SSE FSM</div>
+  <ul>
+    <li><strong>I-E1. At-most-once per event, per client.</strong> The server broadcasts on successful append. There is no replay on reconnect; clients re-fetch via <code>GET /api/comments/:s/:d</code> to reconcile. Users never see a duplicate "new comment" toast for the same JSONL line.</li>
+    <li><strong>I-E2. Disconnected is not terminal.</strong> The browser retries with exponential backoff (up to ~10 s). UI reflects this with a non-modal banner; creation remains possible (drafts queue locally, see UC-12).</li>
+    <li><strong>I-E3. Pings are opaque.</strong> <code>event: ping</code> carries <code>data: {}</code>; the widget ignores it. It exists only to reset devtunnel idle timeouts (design &sect;4 <em>tech choices</em>).</li>
+    <li><strong>I-E4. Revocation fans out in bounded time.</strong> When the HMAC secret rotates, every open stream receives a <code>revoked</code> frame in the next broadcast cycle; latency &le; 30 s (the ping interval is the worst case).</li>
+    <li><strong>I-E5. Auth gate is in-band.</strong> The SSE GET carries the same cookie as everything else; there is no query-string token, no Authorization header. See <a href="design.html#sec-perms">Design &sect;9</a>.</li>
+    <li><strong>I-E6. Registry never leaks.</strong> Server <code>res.on('close', ...)</code> always removes the entry. Unit test: 100 open/close cycles leaves the <code>Set</code> empty.</li>
+  </ul>
+</div>
+
+<h3 id="sse-edges">7.4 Open Questions / Edge Cases</h3>
+<ul>
+  <li>[ ] Should the widget synthesise a <strong>client-side replay</strong> (re-fetch full list) on reconnect? MVP: yes, quietly &mdash; but invariant I-E1 only holds if the re-fetch and the incoming live stream don't double-count during the transition. Needs a test.</li>
+  <li>[ ] How are <em>revise</em> status changes carried on SSE &mdash; as <code>comment</code> events (current design) or their own channel? If the former, the client needs to know to look at <code>reviseStatus</code>. Clarify in test cases.</li>
+  <li>[ ] Devtunnel flakiness during the 30 s ping window: if two pings are missed, the browser may not yet treat it as <code>disconnected</code>. Consider a watchdog that forces reconnect after 45 s of silence.</li>
+  <li>[ ] Back-pressure: what if a viewer has 10 docs open and 10 SSE streams? Per-session cap would be sensible; none in MVP.</li>
+</ul>
+
+<!-- ============ 8. RATE-LIMIT BUCKET FSM ============ -->
+<h2 id="bucket-fsm">8. Rate-Limit Bucket Lifecycle</h2>
+
+<div class="entity-head">
+  <div><span class="label">Entity</span>
+    <div style="font-weight:590; color:var(--text); font-size:1.05rem;">Token bucket (per-session POST limiter)</div>
+  </div>
+  <p>Design &sect;5 pins the bucket at 5 POST / session / 10 s (also mentioned as 10/min + 100/hr in &sect;10 R-2 &mdash; implementation likely composes both). Conceptually, each bucket has <code>tokens</code> (0..capacity) and a <code>lastRefill</code> timestamp. Four states fold the two values: <code>full</code> (tokens == capacity), <code>draining</code> (0 &lt; tokens &lt; capacity), <code>empty</code> (tokens == 0, the next POST is 429), and <code>refilling</code> (transient &mdash; the refill math is running on a cold bucket that hasn't been touched in a long time).</p>
+</div>
+
+<h3 id="bucket-diagram">8.1 States &amp; Diagram</h3>
+
+<div class="diagram">
+  <svg width="820" height="320" viewBox="0 0 820 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="b-fsm-t b-fsm-d">
+    <title id="b-fsm-t">Token bucket state machine</title>
+    <desc id="b-fsm-d">A bucket starts full; each POST consumes a token, moving it through draining to empty. Time passing refills tokens. Empty buckets reject requests with 429 and Retry-After.</desc>
+
+    <defs>
+      <marker id="b-arr-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)"/></marker>
+      <marker id="b-arr-g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--green)"/></marker>
+      <marker id="b-arr-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--red)"/></marker>
+      <marker id="b-arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--muted)"/></marker>
+    </defs>
+
+    <!-- full -->
+    <rect x="40" y="130" width="140" height="56" rx="10" fill="var(--svg-bg)" stroke="var(--green)" stroke-width="2"/>
+    <text x="110" y="157" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">full</text>
+    <text x="110" y="173" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">tokens == capacity</text>
+
+    <!-- draining -->
+    <rect x="220" y="130" width="160" height="56" rx="10" fill="var(--svg-bg)" stroke="var(--accent)" stroke-width="1.8"/>
+    <text x="300" y="157" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">draining</text>
+    <text x="300" y="173" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">0 &lt; tokens &lt; capacity</text>
+
+    <!-- empty -->
+    <rect x="420" y="130" width="140" height="56" rx="10" fill="var(--svg-bg)" stroke="var(--red)" stroke-width="2"/>
+    <text x="490" y="157" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">empty</text>
+    <text x="490" y="173" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">next POST &rarr; 429</text>
+
+    <!-- refilling -->
+    <rect x="600" y="130" width="180" height="56" rx="10" fill="var(--svg-bg)" stroke="var(--yellow)" stroke-width="1.8"/>
+    <text x="690" y="157" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="13" font-weight="700">refilling</text>
+    <text x="690" y="173" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">lazy math on first touch</text>
+
+    <!-- arrows -->
+    <!-- full -> draining -->
+    <line x1="180" y1="158" x2="218" y2="158" stroke="var(--accent)" stroke-width="1.8" marker-end="url(#b-arr-a)"/>
+    <text x="200" y="148" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">POST</text>
+
+    <!-- draining self (more POSTs) -->
+    <path d="M 245 130 Q 230 100 300 95 Q 370 100 355 130" stroke="var(--accent)" stroke-width="1.4" stroke-dasharray="4,2" fill="none" marker-end="url(#b-arr-a)"/>
+    <text x="300" y="88" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">POST (tokens-- while &gt; 0)</text>
+
+    <!-- draining -> empty -->
+    <line x1="380" y1="158" x2="418" y2="158" stroke="var(--red)" stroke-width="1.8" marker-end="url(#b-arr-r)"/>
+    <text x="400" y="148" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">last token</text>
+
+    <!-- empty self (more POSTs get 429) -->
+    <path d="M 445 130 Q 430 100 490 95 Q 550 100 535 130" stroke="var(--red)" stroke-width="1.4" stroke-dasharray="4,2" fill="none" marker-end="url(#b-arr-r)"/>
+    <text x="490" y="88" text-anchor="middle" fill="var(--red)" font-family="sans-serif" font-size="10" font-weight="600">POST &rarr; 429 + Retry-After</text>
+
+    <!-- empty -> refilling (time) -->
+    <line x1="560" y1="158" x2="598" y2="158" stroke="var(--muted)" stroke-width="1.6" marker-end="url(#b-arr-m)"/>
+    <text x="580" y="148" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">time</text>
+
+    <!-- refilling -> draining or full -->
+    <path d="M 600 170 Q 420 230 220 185" stroke="var(--green)" stroke-width="1.6" fill="none" marker-end="url(#b-arr-g)"/>
+    <text x="410" y="225" text-anchor="middle" fill="var(--svg-text)" font-family="sans-serif" font-size="10">min(cap, tokens + elapsed*rate)</text>
+
+    <path d="M 610 170 Q 350 290 110 185" stroke="var(--green)" stroke-width="1.2" fill="none" stroke-dasharray="4,2" marker-end="url(#b-arr-g)"/>
+    <text x="340" y="285" text-anchor="middle" fill="var(--svg-muted)" font-family="sans-serif" font-size="10">fully cold bucket: restores to full</text>
+  </svg>
+  <div class="caption">Figure 8.1. Token bucket lifecycle. <code>refilling</code> is a transient folding step: the server lazily recomputes <code>tokens = min(cap, tokens + elapsed*rate)</code> on each touch, then routes to <code>full</code> or <code>draining</code> based on the outcome.</div>
+</div>
+
+<h3 id="bucket-transitions">8.2 Transition Table</h3>
+<table>
+  <thead><tr><th>From</th><th>Event / Trigger</th><th>Guard</th><th>To</th><th>Side effects</th></tr></thead>
+  <tbody>
+    <tr><td>(new session)</td><td>first POST after login</td><td>bucket not in <code>Map</code></td><td><code>full</code></td><td>Bucket created with <code>tokens = capacity</code>, <code>lastRefill = now</code>.</td></tr>
+    <tr><td><code>full</code></td><td>POST</td><td>all request-level validations pass</td><td><code>draining</code> (or <code>empty</code> if capacity == 1)</td><td><code>tokens--</code>; request proceeds to Comment/Revise FSMs.</td></tr>
+    <tr><td><code>draining</code></td><td>POST</td><td><code>tokens &gt; 0</code></td><td><code>draining</code> or <code>empty</code></td><td><code>tokens--</code>.</td></tr>
+    <tr><td><code>draining</code> / <code>empty</code></td><td>Any POST after elapsed &ge; refill interval</td><td>bucket cold enough to refill</td><td><code>refilling</code></td><td>Recompute <code>tokens = min(cap, tokens + (now - lastRefill) * rate)</code>; update <code>lastRefill = now</code>. This is an internal fold, not observable.</td></tr>
+    <tr><td><code>refilling</code></td><td>internal</td><td>tokens now &gt; 0</td><td><code>full</code> or <code>draining</code></td><td>If tokens == capacity &rarr; <code>full</code>; else <code>draining</code>. Transition into <code>full</code> means the next POST starts the cycle again.</td></tr>
+    <tr><td><code>empty</code></td><td>POST</td><td><code>tokens == 0</code> and elapsed &lt; refill interval</td><td><code>empty</code></td><td>Respond <code>429 RATE_LIMITED</code> with <code>Retry-After: &lt;seconds until next token&gt;</code>. No JSONL line, no audit (beyond the standard access log &mdash; no <code>[comments]</code> audit because nothing mutated).</td></tr>
+    <tr><td><code>empty</code></td><td>Session revoked</td><td>plan_share_stop</td><td>(discarded)</td><td>Bucket entry removed from the <code>Map</code> along with session map entry.</td></tr>
+    <tr><td>any</td><td>Process exit / restart</td><td>server kill</td><td>(gone)</td><td>In-memory state lost; on restart every session appears fresh with a <code>full</code> bucket. No durable cost (see I-B4).</td></tr>
+  </tbody>
+</table>
+
+<h3 id="bucket-invariants">8.3 Invariants</h3>
+<div class="callout">
+  <div class="callout-title"><span class="badge badge-blue">Invariants</span> Bucket FSM</div>
+  <ul>
+    <li><strong>I-B1. Tokens never go negative.</strong> The <code>draining &rarr; empty</code> transition fires when the last token is drawn; subsequent POSTs never decrement.</li>
+    <li><strong>I-B2. Tokens never exceed capacity.</strong> The refill math always clamps: <code>min(cap, tokens + elapsed*rate)</code>.</li>
+    <li><strong>I-B3. Refill is lazy, not timer-driven.</strong> There is no <code>setInterval</code>; the bucket is only touched when a request arrives. This keeps idle sessions free.</li>
+    <li><strong>I-B4. Bucket loss on restart is benign.</strong> A restarted server grants a fresh bucket &mdash; worst case, an attacker gets <code>capacity</code> extra requests once. Acceptable because the attacker was also disconnected and must re-login.</li>
+    <li><strong>I-B5. 429 never touches the log.</strong> The audit log is reserved for actual mutations and security-class denies. A 429 is a benign retry signal, not a security event.</li>
+    <li><strong>I-B6. Loopback bypasses the bucket.</strong> The host cannot rate-limit itself; otherwise scripted workflows (<code>/plan-revise</code> batching 30 pending revises in a row) would trip the limiter pointlessly.</li>
+  </ul>
+</div>
+
+<h3 id="bucket-edges">8.4 Open Questions / Edge Cases</h3>
+<ul>
+  <li>[ ] Design &sect;5 says 5/10s; &sect;10 R-2 says 10/min + 100/hr. MVP probably composes both (short-burst and long-term). <strong>TODO: pin the composite formula before test cases</strong>.</li>
+  <li>[ ] <code>Retry-After</code> precision (whole seconds vs ms)? Browsers handle seconds fine; widget should floor.</li>
+  <li>[ ] Do PATCH / DELETE share the same bucket, or each has its own? Design reads "5 POST per session per 10s" &mdash; POST only. Other methods are currently unlimited; this may be deliberate (edits are rarer) or a gap.</li>
+  <li>[ ] SSE stream GET obviously should not consume bucket tokens. Confirm in implementation.</li>
+</ul>
+
+<!-- ============ 9. CROSS-ENTITY INVARIANTS ============ -->
+<h2 id="cross-entity">9. Cross-Entity Invariants</h2>
+
+<p>Some invariants constrain how two FSMs <em>must</em> line up. These are the ones most likely to produce compound bugs if left unchecked; each has a corresponding <em>test class</em> that the tester can expand into concrete cases.</p>
+
+<div class="callout callout-important">
+  <div class="callout-title"><span class="badge badge-red">Cross-invariants</span></div>
+  <ul>
+    <li><strong>X-1. Deleted parent &rArr; revise axis frozen.</strong> If a Comment moves to <code>deleted</code>, any revise state (<code>pending</code>/<code>dispatched</code>/<code>proposed</code>) is frozen. Accept/reject routes return 404.</li>
+    <li><strong>X-2. Revoked session &rArr; SSE <code>closed</code>.</strong> The session transition to <code>revoked</code> fans out to every SSE in the session's doc map; each enters <code>closed</code> within one ping interval.</li>
+    <li><strong>X-3. Empty bucket never produces a JSONL line.</strong> The bucket check is the first gate after auth; a 429 response precludes any Comment or Revise transition.</li>
+    <li><strong>X-4. Anchor <code>orphaned=true</code> &rArr; Revise <code>accept</code> blocked.</strong> Even if the revise FSM is in <code>proposed</code>, the accept guard depends on a current anchor match; an orphaned anchor trips the drift guard and refuses to patch.</li>
+    <li><strong>X-5. Loopback bypass is composable.</strong> Loopback bypasses both the Session FSM and the Bucket FSM; every other FSM still applies (Comment, Revise, Anchor, SSE). This is the single "god mode" for the host &mdash; nothing else elevates privilege.</li>
+    <li><strong>X-6. Event order is preserved on disk but not guaranteed on the wire.</strong> JSONL is strictly append-ordered; SSE broadcasts are best-effort per-client. Two viewers may see mutations in slightly different orders; reconciliation is a GET-list pull after reconnect (see I-E1).</li>
+  </ul>
+</div>
+
+<p class="todo"><strong>Tester hand-off:</strong> Every "never" arrow in the diagrams above corresponds to a negative test case. Every "(guard fails)" row in a transition table corresponds to an HTTP error response test. Every invariant (I-C1 &hellip; I-B6 and X-1 &hellip; X-6) is a property-style assertion the test harness should keep green across runs. When the Test Cases doc lands, link each assertion back here by id.</p>
+
+</main>
+
+<script>
+(function() {
+  var KEY = 'plan-harness-theme';
+  var NEXT = { system: 'light', light: 'dark', dark: 'system' };
+  var html = document.documentElement;
+  var toggle = document.getElementById('themeToggle');
+
+  function resolvePref(pref) {
+    if (pref === 'dark') return 'dark';
+    if (pref === 'light') return 'light';
+    return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  function applyPref(pref) {
+    try { localStorage.setItem(KEY, pref); } catch(e) {}
+    html.setAttribute('data-theme', resolvePref(pref));
+    html.setAttribute('data-theme-pref', pref);
+    if (toggle) {
+      toggle.setAttribute('data-theme-pref', pref);
+      toggle.setAttribute('aria-label', 'Theme: ' + pref + ' (click to cycle)');
+      toggle.setAttribute('title', 'Theme: ' + pref + ' -- click to cycle');
+    }
+  }
+
+  var currentPref = (function() { try { return localStorage.getItem(KEY); } catch(e) { return null; } })() || 'system';
+  applyPref(currentPref);
+
+  if (toggle) {
+    toggle.addEventListener('click', function() {
+      var pref = (function() { try { return localStorage.getItem(KEY); } catch(e) { return null; } })() || 'system';
+      applyPref(NEXT[pref] || 'system');
+    });
+  }
+
+  try {
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+      var pref = (function() { try { return localStorage.getItem(KEY); } catch(e) { return null; } })() || 'system';
+      if (pref === 'system') applyPref('system');
+    });
+  } catch(e) {}
+
+  window.addEventListener('storage', function(e) {
+    if (e.key === KEY && e.newValue) applyPref(e.newValue);
+  });
+
+  // Active-section highlight on scroll
+  var navLinks = document.querySelectorAll('.section-nav a[href^="#"]');
+  var sections = [];
+  navLinks.forEach(function(link) {
+    var id = link.getAttribute('href').slice(1);
+    var el = document.getElementById(id);
+    if (el) sections.push({ id: id, el: el, link: link });
+  });
+
+  function updateActive() {
+    var scrollY = window.scrollY + 120;
+    var current = null;
+    for (var i = sections.length - 1; i >= 0; i--) {
+      if (sections[i].el.offsetTop <= scrollY) { current = sections[i]; break; }
+    }
+    navLinks.forEach(function(l) { l.classList.remove('active'); });
+    if (current) current.link.classList.add('active');
+  }
+  window.addEventListener('scroll', updateActive, { passive: true });
+  updateActive();
+})();
+</script>
+
+</body>
+</html>
