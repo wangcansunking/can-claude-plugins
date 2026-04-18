@@ -11,6 +11,7 @@
       "description": "Structured project planning with agent teams — generates interconnected design docs, test plans, state machines, test cases, and implementation plans as interactive HTML. 11 skills, 6 MCP tools, 6 agent roles.",
       "version": "1.0.0",
       "source": "./plan-harness",
+      "icon": "./plan-harness/assets/icon.png",
       "category": "planning",
       "tags": [
         "planning",
