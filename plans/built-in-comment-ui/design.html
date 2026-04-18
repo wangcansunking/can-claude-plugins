@@ -338,6 +338,8 @@ kbd {
   <li><strong>plan-harness contributor</strong> &mdash; developer in this repo reading the plan docs <em>about this plugin</em>; self-development recursion is a real UX constraint.</li>
 </ul>
 
+<p class="todo" style="border-left: 3px solid var(--yellow); background: var(--badge-yellow-bg); padding: 0.5rem 0.8rem; margin: 0.8rem 0; font-size: 0.88rem;">TODO: once the comment API lands, add a concrete SSE reconnect strategy (expected dropout rate on devtunnel is ~2/hr).</p>
+
 <h3 id="success-metrics">Success Metrics</h3>
 <ul>
   <li><strong>TTFC</strong> (time-to-first-comment) p50 &lt; 30s / p95 &lt; 90s from landing on login.</li>
@@ -882,7 +884,20 @@ data: {}</code></pre>
     <tr><td><strong>Comments</strong></td><td><code>/api/comments/:scenario/:doc</code> when the comment API lands (Phase 2); stub empty-state until then.</td><td><code>anchor.exact</code> preview + unresolved badge + author initial.</td><td>The span carrying the <code>sec-&lt;hex&gt;</code> anchor; widget re-runs the anchor walker if the target drifted since last paint.</td></tr>
   </tbody>
 </table>
-<p>The widget is injected server-side by <code>/view</code> (same pass as the breadcrumb pill) so it works on every already-written plan doc without regen. Because it reads <code>window.__PLAN_HARNESS_META__</code>, the <code>role</code> field gates any host-only chrome (e.g. a future <em>Jump to pending revises</em> filter toggle).</p>
+<p>The widget is injected server-side by <code>/view</code> (same pass as the breadcrumb pill) so it works on every already-written plan doc without regen. Because it reads <code>window.__PLAN_HARNESS_META__</code>, the <code>role</code> field gates any host-only chrome (e.g. a future <em>Jump to pending revises</em> filter toggle). <strong>A panel is fully hidden when its list is empty</strong> &mdash; no button, no empty-state text &mdash; to keep docs without TODOs / comments free of dead chrome.</p>
+
+<h4 id="todo-format-contract">Recognized TODO markers (contract)</h4>
+<p>The TODOs panel scanner runs on the main-content DOM at <code>DOMContentLoaded</code> and recognizes exactly these three forms. Anything else is ignored. The contract is stable so the writer agent, any future slash command, and external tools can emit TODOs with confidence the panel will surface them.</p>
+<table>
+  <thead><tr><th>#</th><th>Pattern</th><th>Match</th><th>Preferred for</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><code>TODO: &lt;text&gt;</code> or <code>FIXME: &lt;text&gt;</code> in any text node (regex <code>/\b(TODO|FIXME)\s*[:：]\s*(.{2,200})/</code>, 2&ndash;200 chars after the colon, ASCII or full-width <code>：</code>).</td><td>Parent element of the text node; scroll target = that element.</td><td>Inline notes inside prose paragraphs, table cells, or callouts. Recommended default.</td></tr>
+    <tr><td>2</td><td><code>&lt;li&gt;</code> whose direct text starts with <code>[ ]</code> (open) or <code>[x]</code> / <code>[X]</code> (done).</td><td>The <code>&lt;li&gt;</code> itself.</td><td>Checklists where items can be ticked off as resolved. Done items render struck-through.</td></tr>
+    <tr><td>3</td><td>Any element with <code>class="todo"</code>.</td><td>The element itself.</td><td>Styled callout boxes that also deserve panel-level visibility (e.g. the yellow-bordered block used in §1 above). Preferred when a TODO warrants visual weight in the flow.</td></tr>
+  </tbody>
+</table>
+<p>Dedup is by <em>target element</em>, not label text, so a <code>class="todo"</code> block whose body starts with <code>TODO:</code> counts as one item even though both patterns 1 and 3 match. Nested TODOs (e.g. inside an already-matched <code>.todo</code>) are still surfaced if they live in a separate child element.</p>
+<p><strong>For the writer agent:</strong> when emitting a planning gap, prefer pattern 3 for high-signal items (they carry yellow-border styling via the existing <code>.todo</code> rule and jump to mind when the reader scrolls past), and pattern 1 for low-signal inline TODOs inside prose. Pattern 2 is appropriate for explicit checklists (phase acceptance gates, PR-review checklists). All three anchor off the nearest <code>[data-section-id]</code> ancestor so scrolling always lands in-context.</p>
 
 <h3 id="ux-author-actions">Author Composer: Two Actions</h3>
 <p>When <code>/api/me</code> returns <code>role: "host"</code> (loopback, or a session flagged host by the server), the composer's submit row shows <strong>two</strong> primary buttons instead of one:</p>
