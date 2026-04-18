@@ -873,6 +873,17 @@ data: {}</code></pre>
 
 <p><strong>Why a side panel over a modal or inline bubble?</strong> Threads get long; modals trap focus and block re-reading the doc; inline bubbles clip at section boundaries and fight embedded charts. A non-modal slide-over lets the reviewer re-check context while writing. Below 720&nbsp;px, the panel becomes a bottom sheet.</p>
 
+<h3 id="ux-sidebar-panels">Sidebar Auxiliary Panels</h3>
+<p>Below the existing <strong>On this page</strong> list, the left sidebar carries two collapsible panels &mdash; both closed by default, open state remembered per <code>(scenario, doc)</code> in <code>localStorage</code>. Clicking any item scrolls the anchor to <code>block: "center"</code> with a 1.2s accent flash so the eye can pick up the target.</p>
+<table>
+  <thead><tr><th>Panel</th><th>Source</th><th>Item label</th><th>Scroll target</th></tr></thead>
+  <tbody>
+    <tr><td><strong>TODOs</strong></td><td>Main-content DOM scan: <code>TODO:</code> / <code>FIXME:</code> text, <code>&lt;li&gt;</code> starting with <code>[ ]</code> / <code>[x]</code>, any element with <code>class="todo"</code>.</td><td>Truncated TODO text + parent section title.</td><td>The matched element itself (not just the section heading), so the author sees the exact span.</td></tr>
+    <tr><td><strong>Comments</strong></td><td><code>/api/comments/:scenario/:doc</code> when the comment API lands (Phase 2); stub empty-state until then.</td><td><code>anchor.exact</code> preview + unresolved badge + author initial.</td><td>The span carrying the <code>sec-&lt;hex&gt;</code> anchor; widget re-runs the anchor walker if the target drifted since last paint.</td></tr>
+  </tbody>
+</table>
+<p>The widget is injected server-side by <code>/view</code> (same pass as the breadcrumb pill) so it works on every already-written plan doc without regen. Because it reads <code>window.__PLAN_HARNESS_META__</code>, the <code>role</code> field gates any host-only chrome (e.g. a future <em>Jump to pending revises</em> filter toggle).</p>
+
 <h3 id="ux-author-actions">Author Composer: Two Actions</h3>
 <p>When <code>/api/me</code> returns <code>role: "host"</code> (loopback, or a session flagged host by the server), the composer's submit row shows <strong>two</strong> primary buttons instead of one:</p>
 <table>
