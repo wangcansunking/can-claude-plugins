@@ -11,3 +11,6 @@ cc-history/
 
 # Playwright MCP runtime artifacts (snapshots, console logs)
 .playwright-mcp/
+
+# Per-scenario comment stores — reviewer data, not source of truth
+plans/*/.comments/
