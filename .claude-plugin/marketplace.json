@@ -8,8 +8,8 @@
   "plugins": [
     {
       "name": "plan-harness",
-      "description": "Structured project planning with agent teams — unified /plan-gen dispatcher for every doc type, cascade sync, interactive test-report fix-loop with live Playwright MCP execution, /asset route + server-injected lightbox for evidence screenshots. 10 skills (7 per-type generators consolidated), 8 MCP tools, 6 agent roles.",
-      "version": "1.1.0",
+      "description": "Structured project planning with agent teams — unified /plan-gen dispatcher for every doc type, cascade sync, interactive test-report fix-loop with live Playwright MCP execution, /asset route + server-injected lightbox for evidence screenshots. Built-in comment UI with W3C-style anchors, @-mention queue for agent personas, and resolved-thread sidebar toggle. 10 skills, 10 MCP tools, 6 agent roles.",
+      "version": "1.2.0",
       "source": {
         "source": "url",
         "url": "https://github.com/wangcansunking/plan-harness.git"
