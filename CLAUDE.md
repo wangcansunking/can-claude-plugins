@@ -9,7 +9,7 @@ A personal Claude Code plugin marketplace. Each top-level directory (e.g., `plan
 ## Architecture
 
 ```
-canwa-claude-plugins/
+can-claude-plugins/
   .claude-plugin/marketplace.json   # Root marketplace registry — lists all plugins
   plan-harness/                     # Plugin: structured project planning
     .claude-plugin/

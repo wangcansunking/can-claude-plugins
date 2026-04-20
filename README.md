@@ -1,4 +1,4 @@
-# canwa-claude-plugins
+# can-claude-plugins
 
 Personal Claude Code plugin marketplace.
 
@@ -14,17 +14,17 @@ Personal Claude Code plugin marketplace.
 ### 1. Add this marketplace
 
 ```bash
-claude plugins marketplace add https://github.com/wangcansunking/sunky-claude-code-marketplace
+claude plugins marketplace add https://github.com/wangcansunking/can-claude-plugins
 ```
 
 ### 2. Install a plugin
 
 ```bash
 # Local plugin (bundled in this repo)
-claude plugins install plan-harness@canwa-claude-plugins
+claude plugins install plan-harness@can-claude-plugins
 
 # External plugin (separate repo)
-claude plugins install claude-config-manager@canwa-claude-plugins
+claude plugins install claude-config-manager@can-claude-plugins
 ```
 
 ### 3. Restart Claude Code
@@ -38,16 +38,16 @@ The plugin's skills (`/plan-context`, `/plan-init`, `/plan-design`, etc.) and MC
 claude plugins list
 
 # Update a plugin to latest
-claude plugins update plan-harness@canwa-claude-plugins
+claude plugins update plan-harness@can-claude-plugins
 
 # Uninstall a plugin
-claude plugins uninstall plan-harness@canwa-claude-plugins
+claude plugins uninstall plan-harness@can-claude-plugins
 
 # List configured marketplaces
 claude plugins marketplace list
 
 # Remove this marketplace
-claude plugins marketplace remove canwa-claude-plugins
+claude plugins marketplace remove can-claude-plugins
 ```
 
 ## Adding New Plugins
@@ -56,4 +56,4 @@ claude plugins marketplace remove canwa-claude-plugins
 2. Add `.claude-plugin/plugin.json` with metadata
 3. Add skills in `skills/`, MCP server in `local-proxy/`, etc.
 4. Register the plugin in the root `.claude-plugin/marketplace.json` under `plugins[]`
-5. Commit, push, then run `claude plugins marketplace update canwa-claude-plugins`
+5. Commit, push, then run `claude plugins marketplace update can-claude-plugins`
