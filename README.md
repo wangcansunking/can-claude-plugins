@@ -6,8 +6,8 @@ Personal Claude Code plugin marketplace.
 
 | Plugin | Description | Version |
 |--------|-------------|---------|
-| [plan-harness](./plan-harness/) | Structured project planning with agent teams. Generates interconnected design docs, test plans, state machines, test cases, and implementation plans as interactive HTML. 11 skills, 6 MCP tools, 6 agent roles. | 1.0.0 |
-| [claude-config-manager](https://github.com/wangcansunking/claude-config-manager) | Dashboard & CLI for managing Claude Code configurations — profiles, export/import, MCP store, plugin marketplace, sessions viewer. 9 MCP tools, web dashboard, real-time sync. | 1.0.0-draft |
+| [plan-harness](https://github.com/wangcansunking/plan-harness) | Structured project planning with agent teams. Generates interconnected design docs, test plans, state machines, test cases, and implementation plans as interactive HTML. 11 skills, 6 MCP tools, 6 agent roles. | 1.2.0 |
+| [claude-config-manager](https://github.com/wangcansunking/claude-config-manager) | Dashboard & CLI for managing Claude Code configurations — profiles, export/import, MCP store, plugin marketplace, sessions viewer. 9 MCP tools, web dashboard, real-time sync. | 1.0.8 |
 
 ## Installation
 
