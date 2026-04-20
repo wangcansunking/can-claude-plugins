@@ -27,7 +27,7 @@
     },
     {
       "name": "claude-config-manager",
-      "description": "Dashboard & CLI for managing Claude Code configurations — profiles, export/import, MCP store, plugin marketplace, sessions viewer. 9 MCP tools, web dashboard, real-time sync.",
+      "description": "Dashboard & CLI for managing Claude Code configurations — profiles, export/import, MCP store, plugin marketplace, sessions viewer. 22 MCP tools, web dashboard, real-time sync.",
       "version": "1.0.8",
       "source": {
         "source": "url",
