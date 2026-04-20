@@ -28,7 +28,7 @@
     {
       "name": "claude-config-manager",
       "description": "Dashboard + CLI for managing Claude Code configurations — profiles, export/import, MCP store, plugin marketplace, sessions, metrics. CLI-first operations (`claude-config`) with 5 slash commands (`/ccm`, `/ccm-dashboard`, `/ccm-profile`, `/ccm-export`, `/ccm-import`) and an intentionally minimal 2-tool MCP surface (dashboard status + open).",
-      "version": "1.1.0",
+      "version": "1.1.2",
       "source": {
         "source": "url",
         "url": "https://github.com/wangcansunking/claude-config-manager.git"
