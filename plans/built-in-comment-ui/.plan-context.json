@@ -1,9 +1,9 @@
 {
   "version": 1,
   "createdAt": "2026-04-17T02:34:11.422Z",
-  "repoRoot": "C:/repos/canwa-claude-plugins",
-  "repoName": "canwa-claude-plugins",
-  "scenarioPath": "C:/repos/canwa-claude-plugins/plans/built-in-comment-ui",
+  "repoRoot": "C:/repos/can-claude-plugins",
+  "repoName": "can-claude-plugins",
+  "scenarioPath": "C:/repos/can-claude-plugins/plans/built-in-comment-ui",
   "scenarioName": "built-in-comment-ui",
   "description": "Add a text-selection-based comment UI to the plan-harness HTML dashboard. Reviewers highlight text in any rendered plan document and leave comments Word-style, stored as JSONL on the host filesystem and attributed to the logged-in reviewer. Requires stable deterministic section IDs in generated HTML as a prerequisite. Establishes the built-in collaboration layer that removes dependence on external tools.",
   "workItem": "",
@@ -50,7 +50,7 @@
     "selfDevelopment": {
       "note": "This scenario is planning plan-harness itself. The plugin being edited IS the plugin running the planning. This creates constraints that downstream agents must respect.",
       "constraints": [
-        "Claude Code loads the plugin from a per-user cache (~/.claude/plugins/cache/canwa-claude-plugins/plan-harness/<version>/), not from this repo directly. Edits to repo source have no effect until sync'd.",
+        "Claude Code loads the plugin from a per-user cache (~/.claude/plugins/cache/can-claude-plugins/plan-harness/<version>/), not from this repo directly. Edits to repo source have no effect until sync'd.",
         "Dev loop: edit src → `npm run dev` (builds dist + syncs to cache) → restart Claude Code.",
         "The MCP server is a long-running stdio process; new bundles only load at Claude Code startup.",
         "Skill/prompt edits (markdown-only) still need `npm run sync` + CC restart to take effect.",
