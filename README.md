@@ -1,3 +1,7 @@
+**English** · [简体中文](README.zh.md)
+
+---
+
 # can-claude-plugins
 
 Personal Claude Code plugin marketplace.
