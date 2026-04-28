@@ -11,7 +11,7 @@ Claude Code 个人插件市场。
 | 插件 | 简介 | 版本 |
 |------|------|------|
 | [plan-harness](https://github.com/wangcansunking/plan-harness) | 结构化项目规划工具，搭配 agent 团队使用。统一的 `/plan-gen` 分派器可生成全部文档类型（design / state-machine / test-plan / test-cases / implementation / test-report / analysis），支持级联同步、搭配 Playwright MCP 的交互式 test-report 修复循环、带 W3C 风格锚点的内置评论 UI。10 个 skill、12 个 MCP 工具、6 个 agent 角色。 | 1.2.0 |
-| [claude-config-manager](https://github.com/wangcansunking/claude-config-manager) | 管理 Claude Code 配置的 Dashboard + CLI — 配置档案、导出/导入、MCP 市场、插件市场、会话、指标。CLI 优先（`claude-config`）+ 5 个 slash command + 2 个 MCP 工具的极简面。 | 1.1.0 |
+| [claude-config-manager](https://github.com/wangcansunking/claude-config-manager) | 管理 Claude Code 配置的 Dashboard + CLI — 配置档案、导出/导入、MCP 市场、插件市场、会话、指标。CLI 优先（`claude-config`）+ 5 个 slash command + 2 个 MCP 工具的极简面。 | 1.1.4 |
 
 ## 安装
 
